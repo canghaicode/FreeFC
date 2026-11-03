@@ -295,9 +295,9 @@ function TacticsBoard() {
   // 球场像素尺寸（供 DOM 线段计算长度与角度）
   const [pitchSize, setPitchSize] = useState<{w: number; h: number}>({w: 0, h: 0})
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     if (!activityId) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     const [act, regs, tacs, lineup] = await Promise.all([
       getActivity(activityId), getRegistrationsWithProfiles(activityId), getTactics(activityId), getLineup(activityId)
     ])
@@ -325,9 +325,9 @@ function TacticsBoard() {
             avatar_url: prof?.avatar_url || null
           }
         })
-      if (seeded.length) setDraftPlayers(seeded)
+        if (seeded.length) setDraftPlayers(seeded)
     }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }, [activityId])
 
   useEffect(() => {
@@ -335,7 +335,8 @@ function TacticsBoard() {
   }, [loadData])
 
   useDidShow(() => {
-    loadData()
+    // 返回页面时静默刷新：不切换 loading 分支，避免整页重挂导致滚动位置回顶
+    loadData(true)
   })
 
   // 是否为教练/队长（有席位或为管理员/发起人）
