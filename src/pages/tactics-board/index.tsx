@@ -17,6 +17,7 @@ import {drawTacticPoster} from '@/utils/tacticExport'
 import {selectMediaFiles, uploadToSupabase} from '@/utils/upload'
 import {supabase} from '@/client/supabase'
 import {TACTIC_LINE_TYPES, VIEW_MODES} from '@/constants'
+import {useBackgroundRefresh} from '@/hooks/useBackgroundRefresh'
 
 /** 战术要素：线条（pass/run/defend）或标记（flag 数字旗子 / opp 对方球员） */
 interface DraftLine {
@@ -253,7 +254,8 @@ function TacticsBoard() {
   const [activity, setActivity] = useState<Activity | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [tactics, setTactics] = useState<Tactic[]>([])
-  const [loading, setLoading] = useState(true)
+  // 返回页面时保留已渲染内容，不整页重挂（模块级 readyPages 记录首载完成）
+  const {loading, startRefresh, finishRefresh} = useBackgroundRefresh('tactics-board')
 
   // 绘制状态
   const [viewMode, setViewMode] = useState<'half' | 'full'>('half')
@@ -295,9 +297,9 @@ function TacticsBoard() {
   // 球场像素尺寸（供 DOM 线段计算长度与角度）
   const [pitchSize, setPitchSize] = useState<{w: number; h: number}>({w: 0, h: 0})
 
-  const loadData = useCallback(async (silent = false) => {
+  const loadData = useCallback(async () => {
     if (!activityId) return
-    if (!silent) setLoading(true)
+    startRefresh()
     const [act, regs, tacs, lineup] = await Promise.all([
       getActivity(activityId), getRegistrationsWithProfiles(activityId), getTactics(activityId), getLineup(activityId)
     ])
@@ -327,16 +329,11 @@ function TacticsBoard() {
         })
         if (seeded.length) setDraftPlayers(seeded)
     }
-    if (!silent) setLoading(false)
-  }, [activityId])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+    finishRefresh()
+  }, [activityId, startRefresh, finishRefresh])
 
   useDidShow(() => {
-    // 返回页面时静默刷新：不切换 loading 分支，避免整页重挂导致滚动位置回顶
-    loadData(true)
+    loadData()
   })
 
   // 是否为教练/队长（有席位或为管理员/发起人）
