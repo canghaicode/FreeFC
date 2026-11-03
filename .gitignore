@@ -1,0 +1,38 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+dist-h5/
+.temp/
+.rn_temp/
+
+# 本地环境覆盖（保留 .env.development / .env.production 供开箱构建）
+.env.local
+.env.*.local
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 微信开发者工具本地私有配置
+project.private.config.json
+
+# 恢复/备份目录
+app-*-recovery-*/
+
+# 编译器缓存
+.swc/

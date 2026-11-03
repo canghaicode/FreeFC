@@ -1,0 +1,1 @@
+BEGIN; SET LOCAL role TO authenticated; SET LOCAL "request.jwt.claim.sub" TO '3dca509b-4ab0-4b83-ad48-f7865eb8c319'; ROLLBACK;

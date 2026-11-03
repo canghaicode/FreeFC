@@ -1,0 +1,1 @@
+SET LOCAL role TO postgres; DO $$ BEGIN PERFORM public.settle_activity_activity('09bdb165-793b-4243-a3e7-f8567cce88d0'); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'ERR: %', SQLERRM; END $$;

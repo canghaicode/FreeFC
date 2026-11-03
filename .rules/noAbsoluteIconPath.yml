@@ -1,0 +1,26 @@
+id: no-absolute-icon-path
+language: TypeScript
+severity: error
+files:
+  - src/**/*.ts
+  - src/**/*.tsx
+message: "iconPath or selectedIconPath should use relative path starting with './', e.g., './assets/icon.png'"
+rule:
+  kind: pair
+  any:
+    # Match absolute path: '/...'
+    - all:
+        - has:
+            field: key
+            regex: ^(iconPath|selectedIconPath)$
+        - has:
+            field: value
+            regex: "^['\"]/"
+    # Match relative path without ./ prefix: 'assets/...' or "assets/..."
+    - all:
+        - has:
+            field: key
+            regex: ^(iconPath|selectedIconPath)$
+        - has:
+            field: value
+            regex: ^['"][a-zA-Z]

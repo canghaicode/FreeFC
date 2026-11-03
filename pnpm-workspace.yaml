@@ -1,0 +1,13 @@
+lockfileIncludeTarballUrl: false
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - miaoda-sc-plugin
+  - miaoda-taro-utils
+  - miaoda-taro-plugin-html
+  - supabase-wechat-js
+  - miaoda-miniprogram-devkit
+allowBuilds:
+  "@ast-grep/cli": true
+  weapp-tailwindcss: true
+  "@tarojs/binding": true
+  "@tarojs/cli": true

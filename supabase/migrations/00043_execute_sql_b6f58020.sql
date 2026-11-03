@@ -1,0 +1,1 @@
+SET LOCAL role TO authenticated; SET LOCAL "request.jwt.claim.sub" TO '358f4665-6c8f-445f-9403-c705b00cfddb';

@@ -1,0 +1,1 @@
+SET LOCAL "request.jwt.claims" TO '{"sub":"3836dd31-5c5b-4bca-bc8c-90d20e20c7d0","role":"authenticated"}'; SET LOCAL "request.jwt.claim.sub" TO '3836dd31-5c5b-4bca-bc8c-90d20e20c7d0';

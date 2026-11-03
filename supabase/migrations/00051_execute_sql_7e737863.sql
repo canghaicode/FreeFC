@@ -1,0 +1,1 @@
+SET role TO authenticated; RESET role;

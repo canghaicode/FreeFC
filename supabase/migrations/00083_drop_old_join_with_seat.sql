@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.join_with_seat(uuid, text, integer);

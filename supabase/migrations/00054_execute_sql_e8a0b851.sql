@@ -1,0 +1,1 @@
+SET role TO anon; SET "request.jwt.claims" TO '{"role":"authenticated","sub":"test-user"}'; RESET role;

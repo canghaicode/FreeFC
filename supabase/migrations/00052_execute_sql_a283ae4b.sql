@@ -1,0 +1,1 @@
+SET role TO authenticated; SET "request.jwt.claims" TO {"role":"authenticated","sub":"test"}; RESET role;
