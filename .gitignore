@@ -36,3 +36,6 @@ app-*-recovery-*/
 
 # 编译器缓存
 .swc/
+
+# 反编译分析临时目录
+packs/
