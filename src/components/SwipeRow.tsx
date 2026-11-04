@@ -8,7 +8,7 @@ interface SwipeRowProps {
   open: boolean
   /** 展开状态变化回调 */
   onOpenChange: (open: boolean) => void
-  /** 滑出区宽度(px),默认 76 */
+  /** 滑出区宽度(px),默认 80 */
   actionWidth?: number
   /** 滑出区内容(通常为操作按钮) */
   actions: ReactNode
@@ -23,7 +23,7 @@ interface SwipeRowProps {
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
  * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
  */
-export function SwipeRow({open, onOpenChange, actionWidth = 76, actions, className = '', contentClassName = 'bg-card', children}: SwipeRowProps) {
+export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', children}: SwipeRowProps) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
@@ -66,7 +66,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 76, actions, classNa
 
   return (
     <div className={`relative overflow-hidden shadow-elegant ${className}`}>
-      <div className="absolute right-0 top-0 bottom-0 flex" style={{width: actionWidth}}>
+      <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center" style={{width: actionWidth}}>
         {actions}
       </div>
       <div
