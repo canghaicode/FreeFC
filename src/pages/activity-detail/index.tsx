@@ -189,17 +189,6 @@ function ActivityDetail() {
 
   const [barHidden, setBarHidden] = useState(false)
   const lastScrollTop = useRef(0)
-  // 横向拖动卡片期间用 ref 锁 scrollTop,pageScrollTo 拉回,零重渲染;Taro 4.1 PageMeta 在 vite-runner 下不可用
-  const scrollLockRef = useRef(false)
-  const lockedScrollTop = useRef(0)
-  const handleDraggingChange = useCallback((dragging: boolean) => {
-    if (dragging) {
-      scrollLockRef.current = true
-      lockedScrollTop.current = lastScrollTop.current
-    } else {
-      scrollLockRef.current = false
-    }
-  }, [])
   // 触摸滑动行期间(及松手后 300ms 内)抑制滚动触发的自动收回,防止拖动手势误触页面微滚
   const swipeLockUntil = useRef(0)
   const holdSwipeLock = useCallback(() => {
@@ -207,13 +196,6 @@ function ActivityDetail() {
   }, [])
   // 往下滚动隐藏底部报名按钮(单帧 >2),往上大幅滚动(单帧 <-20)才弹出,避免轻微下滑误弹出
   usePageScroll(({scrollTop}: {scrollTop: number}) => {
-    if (scrollLockRef.current) {
-      if (scrollTop !== lockedScrollTop.current) {
-        Taro.pageScrollTo({scrollTop: lockedScrollTop.current, duration: 0})
-      }
-      lastScrollTop.current = lockedScrollTop.current
-      return
-    }
     if (Date.now() >= swipeLockUntil.current) setSwipedRegId(null)
     const delta = scrollTop - lastScrollTop.current
     lastScrollTop.current = scrollTop
@@ -946,7 +928,6 @@ function ActivityDetail() {
                     className="rounded-2xl"
                     disabled={!isAdmin}
                     onTouchActive={holdSwipeLock}
-                    onDraggingChange={handleDraggingChange}
                     actions={
                       isAdmin ? (
                         <button
@@ -1080,7 +1061,6 @@ function ActivityDetail() {
                 contentClassName="bg-background"
                 disabled={!(canManageTeams && r.user_id !== user?.id)}
                 onTouchActive={holdSwipeLock}
-                onDraggingChange={handleDraggingChange}
                 actions={
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
@@ -2166,7 +2146,7 @@ function ActivityDetail() {
       )}
     </div>
   )
- }
+}
 
 function VoteSection({
   rows,

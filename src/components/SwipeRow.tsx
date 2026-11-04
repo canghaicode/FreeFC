@@ -20,8 +20,6 @@ interface SwipeRowProps {
   disabled?: boolean
   /** 触摸开始与结束时回调(父级用于触摸期间抑制页面滚动触发的自动收回) */
   onTouchActive?: () => void
-  /** 横向拖动态变化(父级用于 page-meta 禁页面滚动等全局联动) */
-  onDraggingChange?: (dragging: boolean) => void
   children: ReactNode
 }
 
@@ -29,7 +27,7 @@ interface SwipeRowProps {
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
  * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
  */
-export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, onDraggingChange, children}: SwipeRowProps) {
+export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, children}: SwipeRowProps) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
@@ -55,7 +53,6 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
       if (ax > ay * 2) {
         g.horizontal = true
         setDragging(true)
-        onDraggingChange?.(true)
       } else if (ay > ax * 2) {
         g.horizontal = false
       }
@@ -68,7 +65,6 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
 
   const onTouchEnd = () => {
     onTouchActive?.()
-    onDraggingChange?.(false)
     const g = gesture.current
     gesture.current = null
     if (!g || !g.horizontal) {
