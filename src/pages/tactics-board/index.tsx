@@ -403,12 +403,6 @@ function TacticsBoard() {
     setTimeout(measurePitch, 100)
   })
 
-  useEffect(() => {
-    if (!canDraw) return
-    const timer = setTimeout(measurePitch, 60)
-    return () => clearTimeout(timer)
-  }, [measurePitch, canDraw, loading, myTactics.length, tactics.length])
-
   const getCanvasPoint = (e: any): {x: number; y: number} | null => {
     const rect = pitchRectRef.current
     if (!rect) return null
