@@ -924,16 +924,14 @@ function ActivityDetail() {
                       isAdmin ? (
                         <button
                           type="button"
-                          className="flex items-center justify-center leading-none break-keep rounded-lg border-2 border-destructive/40 active:bg-destructive/5"
+                          className="h-full w-full flex flex-col items-center justify-center gap-0.5 rounded-xl bg-destructive active:bg-destructive/80"
                           onClick={() => {
                             setSwipedRegId(null)
                             handleRemoveRegistrant(r)
                           }}
                         >
-                          <div className="px-1.5 py-1 flex items-center gap-0.5">
-                            <div className="i-mdi-account-remove-outline text-lg text-destructive" />
-                            <span className="text-base text-destructive">移除</span>
-                          </div>
+                          <div className="i-mdi-account-remove-outline text-xl text-primary-foreground" />
+                          <span className="text-base text-primary-foreground">移除</span>
                         </button>
                       ) : (
                         <div className="h-full w-full" />
@@ -1059,16 +1057,14 @@ function ActivityDetail() {
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
                       type="button"
-                      className="flex items-center justify-center leading-none break-keep rounded-lg border-2 border-destructive/40 active:bg-destructive/5"
+                      className="h-full w-full flex flex-col items-center justify-center gap-0.5 rounded-xl bg-destructive active:bg-destructive/80"
                       onClick={() => {
                         setSwipedRegId(null)
                         handleRemoveCoach(r)
                       }}
                     >
-                      <div className="px-1.5 py-1 flex items-center gap-0.5">
-                        <div className="i-mdi-account-remove-outline text-lg text-destructive" />
-                        <span className="text-base text-destructive">移除</span>
-                      </div>
+                      <div className="i-mdi-account-remove-outline text-xl text-primary-foreground" />
+                      <span className="text-base text-primary-foreground">移除</span>
                     </button>
                   ) : (
                     <div className="h-full w-full" />
