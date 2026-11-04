@@ -1109,7 +1109,7 @@ function TacticsBoard() {
 
             {/* 底部球门区与禁区 */}
             <div
-              className="absolute border-b border-x border-white/35"
+              className="absolute border-t border-x border-white/35"
               style={{left: '20%', right: '20%', bottom: 0, height: '16%', zIndex: 5}}
             />
             <div
