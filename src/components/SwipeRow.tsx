@@ -1,7 +1,7 @@
 // @title 滑动行:左滑内容,右侧露出操作区(如移除按钮)
 import type {ITouchEvent} from '@tarojs/components'
 import type {ReactNode} from 'react'
-import {useRef, useState} from 'react'
+import {memo, useRef, useState} from 'react'
 
 interface SwipeRowProps {
   /** 当前是否展开操作区(由父级维护,多行互斥) */
@@ -27,16 +27,26 @@ interface SwipeRowProps {
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
  * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
  */
-export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, children}: SwipeRowProps) {
+export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, children}: SwipeRowProps) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
+  const dragXRef = useRef(0)
   const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
+
+  const applyX = (x: number) => {
+    const next = Math.max(-actionWidth, Math.min(0, x))
+    if (next === dragXRef.current) return
+    dragXRef.current = next
+    setDragX(next)
+  }
 
   const onTouchStart = (e: ITouchEvent) => {
     onTouchActive?.()
     const t = e.touches[0]
     if (!t) return
-    gesture.current = {startX: t.clientX, startY: t.clientY, baseX: open ? -actionWidth : 0, horizontal: null}
+    const baseX = open ? -actionWidth : 0
+    dragXRef.current = baseX
+    gesture.current = {startX: t.clientX, startY: t.clientY, baseX, horizontal: null}
   }
 
   const onTouchMove = (e: ITouchEvent) => {
@@ -52,6 +62,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
       // 角度加严:水平分量需 2 倍于垂直(约 27° 内)才判为横向滑开;垂直同理;中间模糊带继续等待
       if (ax > ay * 2) {
         g.horizontal = true
+        applyX(g.baseX + dx)
         setDragging(true)
       } else if (ay > ax * 2) {
         g.horizontal = false
@@ -59,8 +70,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
       return
     }
     if (!g.horizontal) return
-    // 仅向左露出右侧操作区,位移钳制 [-actionWidth, 0]
-    setDragX(Math.max(-actionWidth, Math.min(0, g.baseX + dx)))
+    applyX(g.baseX + dx)
   }
 
   const onTouchEnd = () => {
@@ -71,13 +81,14 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
       setDragging(false)
       return
     }
+    const shouldOpen = dragXRef.current <= -actionWidth / 2
+    dragXRef.current = shouldOpen ? -actionWidth : 0
+    setDragX(dragXRef.current)
     setDragging(false)
-    onOpenChange(dragX <= -actionWidth / 2)
-    setDragX(0)
+    onOpenChange(shouldOpen)
   }
 
   const translateX = dragging ? dragX : open ? -actionWidth : 0
-  const lifted = dragging || open
 
   return (
     <div className={`relative shadow-elegant ${className}`}>
@@ -89,11 +100,12 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
         </div>
       )}
       <div
-        className={`relative overflow-hidden ${contentClassName} ${className} ${lifted ? 'shadow-lg' : ''}`}
+        className={`relative overflow-hidden ${contentClassName} ${className} ${open ? 'shadow-lg' : ''}`}
         style={{
           transform: `translateX(${disabled ? 0 : translateX}px)`,
-          transition: dragging ? 'none' : 'transform 0.25s ease',
+          transition: dragging ? 'none' : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
           touchAction: 'pan-y',
+          willChange: 'transform',
           // 固定层级:避免浮起/放下时 zIndex 切换触发微信重建合成层,导致内部 Image 闪暗
           zIndex: 20
         }}
@@ -106,4 +118,4 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
       </div>
     </div>
   )
-}
+})
