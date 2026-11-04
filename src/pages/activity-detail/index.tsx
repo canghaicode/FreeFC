@@ -189,6 +189,8 @@ function ActivityDetail() {
 
   const [barHidden, setBarHidden] = useState(false)
   const lastScrollTop = useRef(0)
+  // 底部抽屉显隐按同向累计滚动距离切换(60px),方向反转清零,避免轻微滑动误触发
+  const barAccum = useRef(0)
   // 触摸滑动行期间(及松手后 300ms 内)抑制滚动触发的自动收回,防止拖动手势误触页面微滚
   const swipeLockUntil = useRef(0)
   const holdSwipeLock = useCallback(() => {
@@ -201,10 +203,18 @@ function ActivityDetail() {
     lastScrollTop.current = scrollTop
     if (scrollTop <= 0) {
       setBarHidden(false)
+      barAccum.current = 0
       return
     }
-    if (delta > 2) setBarHidden(true)
-    else if (delta < -2) setBarHidden(false)
+    if (delta === 0) return
+    barAccum.current = barAccum.current * delta > 0 ? barAccum.current + delta : delta
+    if (barAccum.current > 60) {
+      setBarHidden(true)
+      barAccum.current = 0
+    } else if (barAccum.current < -60) {
+      setBarHidden(false)
+      barAccum.current = 0
+    }
   })
 
   const count = registrations
