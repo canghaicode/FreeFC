@@ -189,9 +189,14 @@ function ActivityDetail() {
 
   const [barHidden, setBarHidden] = useState(false)
   const lastScrollTop = useRef(0)
+  // 触摸滑动行期间(及松手后 300ms 内)抑制滚动触发的自动收回,防止拖动手势误触页面微滚
+  const swipeLockUntil = useRef(0)
+  const holdSwipeLock = useCallback(() => {
+    swipeLockUntil.current = Date.now() + 300
+  }, [])
   // 往下滚动隐藏底部报名按钮，往上滚动恢复；页面任何滚动同时收回滑开的移除按钮
   usePageScroll(({scrollTop}: {scrollTop: number}) => {
-    setSwipedRegId(null)
+    if (Date.now() >= swipeLockUntil.current) setSwipedRegId(null)
     const delta = scrollTop - lastScrollTop.current
     lastScrollTop.current = scrollTop
     if (scrollTop <= 0) {
@@ -922,6 +927,7 @@ function ActivityDetail() {
                     onOpenChange={(o) => setSwipedRegId(o ? r.id : null)}
                     className="rounded-2xl"
                     disabled={!isAdmin}
+                    onTouchActive={holdSwipeLock}
                     actions={
                       isAdmin ? (
                         <button
@@ -1054,6 +1060,7 @@ function ActivityDetail() {
                 className="rounded-xl"
                 contentClassName="bg-background"
                 disabled={!(canManageTeams && r.user_id !== user?.id)}
+                onTouchActive={holdSwipeLock}
                 actions={
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
