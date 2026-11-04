@@ -20,14 +20,17 @@ interface SwipeRowProps {
   disabled?: boolean
   /** 触摸开始与结束时回调(父级用于触摸期间抑制页面滚动触发的自动收回) */
   onTouchActive?: () => void
+  /** 横向手势锁定时回调(父级立刻收回其他已展开行) */
+  onSwipeStart?: () => void
   children: ReactNode
 }
+
 
 /**
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
  * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
  */
-export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, children}: SwipeRowProps) {
+export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, onSwipeStart, children}: SwipeRowProps) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const dragXRef = useRef(0)
@@ -62,6 +65,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
       // 角度加严:水平分量需 2 倍于垂直(约 27° 内)才判为横向滑开;垂直同理;中间模糊带继续等待
       if (ax > ay * 2) {
         g.horizontal = true
+        onSwipeStart?.()
         applyX(g.baseX + dx)
         setDragging(true)
       } else if (ay > ax * 2) {

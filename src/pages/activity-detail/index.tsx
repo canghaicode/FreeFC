@@ -928,6 +928,7 @@ function ActivityDetail() {
                     className="rounded-2xl"
                     disabled={!isAdmin}
                     onTouchActive={holdSwipeLock}
+                    onSwipeStart={() => setSwipedRegId(null)}
                     actions={
                       isAdmin ? (
                         <button
@@ -1061,6 +1062,7 @@ function ActivityDetail() {
                 contentClassName="bg-background"
                 disabled={!(canManageTeams && r.user_id !== user?.id)}
                 onTouchActive={holdSwipeLock}
+                onSwipeStart={() => setSwipedRegId(null)}
                 actions={
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
