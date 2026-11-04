@@ -45,12 +45,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
     if (g.horizontal === null) {
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
       g.horizontal = Math.abs(dx) > Math.abs(dy)
-      if (g.horizontal) {
-        setDragging(true)
-      } else if (open) {
-        // 垂直滑动(滚动页面):已展开的行自动收回
-        onOpenChange(false)
-      }
+      if (g.horizontal) setDragging(true)
     }
     if (!g.horizontal) return
     // 仅向左露出右侧操作区,位移钳制 [-actionWidth, 0]

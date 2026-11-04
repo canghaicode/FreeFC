@@ -189,8 +189,9 @@ function ActivityDetail() {
 
   const [barHidden, setBarHidden] = useState(false)
   const lastScrollTop = useRef(0)
-  // 往下滚动隐藏底部报名按钮，往上滚动恢复
+  // 往下滚动隐藏底部报名按钮，往上滚动恢复；页面任何滚动同时收回滑开的移除按钮
   usePageScroll(({scrollTop}: {scrollTop: number}) => {
+    setSwipedRegId(null)
     const delta = scrollTop - lastScrollTop.current
     lastScrollTop.current = scrollTop
     if (scrollTop <= 0) {
