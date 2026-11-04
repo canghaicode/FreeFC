@@ -924,7 +924,7 @@ function ActivityDetail() {
                       isAdmin ? (
                         <button
                           type="button"
-                          className="h-full w-full flex flex-col items-center justify-center gap-0.5 rounded-xl bg-destructive active:bg-destructive/80"
+                          className="h-full w-full flex flex-col items-center justify-center gap-0.5 active:bg-black/10"
                           onClick={() => {
                             setSwipedRegId(null)
                             handleRemoveRegistrant(r)
@@ -1057,7 +1057,7 @@ function ActivityDetail() {
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
                       type="button"
-                      className="h-full w-full flex flex-col items-center justify-center gap-0.5 rounded-xl bg-destructive active:bg-destructive/80"
+                      className="h-full w-full flex flex-col items-center justify-center gap-0.5 active:bg-black/10"
                       onClick={() => {
                         setSwipedRegId(null)
                         handleRemoveCoach(r)

@@ -66,7 +66,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
 
   return (
     <div className={`relative overflow-hidden shadow-elegant ${className}`}>
-      <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center p-1.5" style={{width: actionWidth}}>
+      <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center bg-destructive" style={{width: actionWidth}}>
         {actions}
       </div>
       <div
