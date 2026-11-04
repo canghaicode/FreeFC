@@ -104,7 +104,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         </div>
       )}
       <div
-        className={`relative overflow-hidden ${contentClassName} ${className} ${open ? 'shadow-lg' : ''}`}
+        className={`relative overflow-hidden ${contentClassName} ${className}`}
         style={{
           transform: `translateX(${disabled ? 0 : translateX}px)`,
           transition: dragging ? 'none' : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
