@@ -711,7 +711,7 @@ function ActivityDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative" onClick={() => setSwipedRegId(null)}>
       <LogoBg />
       <div className="px-5 pt-6 pb-32 relative z-10">
         {/* 活动信息卡 */}
@@ -920,6 +920,7 @@ function ActivityDetail() {
                     open={swipedRegId === r.id}
                     onOpenChange={(o) => setSwipedRegId(o ? r.id : null)}
                     className="rounded-2xl"
+                    disabled={!isAdmin}
                     actions={
                       isAdmin ? (
                         <button
@@ -933,9 +934,7 @@ function ActivityDetail() {
                           <div className="i-mdi-account-remove-outline text-xl text-primary-foreground" />
                           <span className="text-base text-primary-foreground">移除</span>
                         </button>
-                      ) : (
-                        <div className="h-full w-full" />
-                      )
+                      ) : null
                     }
                   >
                   <div className="rounded-2xl gold-frame p-3 flex items-center gap-3">
@@ -1053,6 +1052,7 @@ function ActivityDetail() {
                 onOpenChange={(o) => setSwipedRegId(o ? r.id : null)}
                 className="rounded-xl"
                 contentClassName="bg-background"
+                disabled={!(canManageTeams && r.user_id !== user?.id)}
                 actions={
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
@@ -1066,9 +1066,7 @@ function ActivityDetail() {
                       <div className="i-mdi-account-remove-outline text-xl text-primary-foreground" />
                       <span className="text-base text-primary-foreground">移除</span>
                     </button>
-                  ) : (
-                    <div className="h-full w-full" />
-                  )
+                  ) : null
                 }
               >
               <div className="rounded-xl p-2 flex items-center gap-2">

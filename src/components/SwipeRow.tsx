@@ -16,6 +16,8 @@ interface SwipeRowProps {
   className?: string
   /** 内容层底色类名,默认 bg-card */
   contentClassName?: string
+  /** 禁用滑动(无操作权限的行):不铺红色滑出层,不响应手势 */
+  disabled?: boolean
   children: ReactNode
 }
 
@@ -23,7 +25,7 @@ interface SwipeRowProps {
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
  * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
  */
-export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', children}: SwipeRowProps) {
+export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, children}: SwipeRowProps) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
@@ -43,7 +45,12 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
     if (g.horizontal === null) {
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
       g.horizontal = Math.abs(dx) > Math.abs(dy)
-      if (g.horizontal) setDragging(true)
+      if (g.horizontal) {
+        setDragging(true)
+      } else if (open) {
+        // 垂直滑动(滚动页面):已展开的行自动收回
+        onOpenChange(false)
+      }
     }
     if (!g.horizontal) return
     // 仅向左露出右侧操作区,位移钳制 [-actionWidth, 0]
@@ -66,22 +73,24 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
 
   return (
     <div className={`relative overflow-hidden shadow-elegant ${className}`}>
-      <div className="absolute inset-0 bg-destructive">
-        <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center" style={{width: actionWidth}}>
-          {actions}
+      {!disabled && (
+        <div className="absolute inset-0 bg-destructive">
+          <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center" style={{width: actionWidth}}>
+            {actions}
+          </div>
         </div>
-      </div>
+      )}
       <div
         className={`relative overflow-hidden ${contentClassName} ${className}`}
         style={{
-          transform: `translateX(${translateX}px)`,
+          transform: `translateX(${disabled ? 0 : translateX}px)`,
           transition: dragging ? 'none' : 'transform 0.25s ease',
           touchAction: 'pan-y'
         }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        onTouchStart={disabled ? undefined : onTouchStart}
+        onTouchMove={disabled ? undefined : onTouchMove}
+        onTouchEnd={disabled ? undefined : onTouchEnd}
+        onTouchCancel={disabled ? undefined : onTouchEnd}
       >
         {children}
       </div>
