@@ -86,7 +86,8 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
           transform: `translateX(${disabled ? 0 : translateX}px)`,
           transition: dragging ? 'none' : 'transform 0.25s ease',
           touchAction: 'pan-y',
-          zIndex: lifted ? 20 : undefined
+          // 固定层级:避免浮起/放下时 zIndex 切换触发微信重建合成层,导致内部 Image 闪暗
+          zIndex: 20
         }}
         onTouchStart={disabled ? undefined : onTouchStart}
         onTouchMove={disabled ? undefined : onTouchMove}
