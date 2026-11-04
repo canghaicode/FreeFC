@@ -403,6 +403,13 @@ function TacticsBoard() {
     setTimeout(measurePitch, 100)
   })
 
+  // 数据渲染后球场位置才稳定，校准一次测量，避免触摸坐标用过期 rect
+  useEffect(() => {
+    if (!canDraw) return
+    const timer = setTimeout(measurePitch, 60)
+    return () => clearTimeout(timer)
+  }, [measurePitch, canDraw, loading, myTactics.length, tactics.length])
+
   const getCanvasPoint = (e: any): {x: number; y: number} | null => {
     const rect = pitchRectRef.current
     if (!rect) return null
