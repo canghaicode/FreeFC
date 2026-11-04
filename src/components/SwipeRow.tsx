@@ -97,6 +97,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
           // 固定层级:避免浮起/放下时 zIndex 切换触发微信重建合成层,导致内部 Image 闪暗
           zIndex: 20
         }}
+        catchMove={dragging}
         onTouchStart={disabled ? undefined : onTouchStart}
         onTouchMove={disabled ? undefined : onTouchMove}
         onTouchEnd={disabled ? undefined : onTouchEnd}
