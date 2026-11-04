@@ -46,9 +46,17 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
     const dx = t.clientX - g.startX
     const dy = t.clientY - g.startY
     if (g.horizontal === null) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
-      g.horizontal = Math.abs(dx) > Math.abs(dy)
-      if (g.horizontal) setDragging(true)
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      const ax = Math.abs(dx)
+      const ay = Math.abs(dy)
+      // 角度加严:水平分量需 2 倍于垂直(约 27° 内)才判为横向滑开;垂直同理;中间模糊带继续等待
+      if (ax > ay * 2) {
+        g.horizontal = true
+        setDragging(true)
+      } else if (ay > ax * 2) {
+        g.horizontal = false
+      }
+      return
     }
     if (!g.horizontal) return
     // 仅向左露出右侧操作区,位移钳制 [-actionWidth, 0]
