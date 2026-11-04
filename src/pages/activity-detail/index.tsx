@@ -189,32 +189,22 @@ function ActivityDetail() {
 
   const [barHidden, setBarHidden] = useState(false)
   const lastScrollTop = useRef(0)
-  // 底部抽屉显隐按同向累计滚动距离切换(60px),方向反转清零,避免轻微滑动误触发
-  const barAccum = useRef(0)
   // 触摸滑动行期间(及松手后 300ms 内)抑制滚动触发的自动收回,防止拖动手势误触页面微滚
   const swipeLockUntil = useRef(0)
   const holdSwipeLock = useCallback(() => {
     swipeLockUntil.current = Date.now() + 300
   }, [])
-  // 往下滚动隐藏底部报名按钮，往上滚动恢复；页面任何滚动同时收回滑开的移除按钮
+  // 往下滚动隐藏底部报名按钮(单帧 >2),往上大幅滚动(单帧 <-20)才弹出,避免轻微下滑误弹出
   usePageScroll(({scrollTop}: {scrollTop: number}) => {
     if (Date.now() >= swipeLockUntil.current) setSwipedRegId(null)
     const delta = scrollTop - lastScrollTop.current
     lastScrollTop.current = scrollTop
     if (scrollTop <= 0) {
       setBarHidden(false)
-      barAccum.current = 0
       return
     }
-    if (delta === 0) return
-    barAccum.current = barAccum.current * delta > 0 ? barAccum.current + delta : delta
-    if (barAccum.current > 60) {
-      setBarHidden(true)
-      barAccum.current = 0
-    } else if (barAccum.current < -60) {
-      setBarHidden(false)
-      barAccum.current = 0
-    }
+    if (delta > 2) setBarHidden(true)
+    else if (delta < -20) setBarHidden(false)
   })
 
   const count = registrations
