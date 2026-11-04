@@ -1,8 +1,8 @@
 // @title 战术板
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import type {CSSProperties} from 'react'
-import Taro, {useDidShow, usePageScroll, useReady} from '@tarojs/taro'
-import {Canvas, Image, View} from '@tarojs/components'
+import Taro, {useDidShow, useReady} from '@tarojs/taro'
+import {Canvas, Image} from '@tarojs/components'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {useAuth} from '@/contexts/AuthContext'
 import {LogoBg} from '@/components/LogoBg'
@@ -292,8 +292,6 @@ function TacticsBoard() {
   const [templateModalVisible, setTemplateModalVisible] = useState(false)
 
   const pitchRectRef = useRef<{left: number; top: number; width: number; height: number} | null>(null)
-  const pageScrollRef = useRef(0)
-  const drawingRef = useRef(false)
   // 球场像素尺寸（供 DOM 线段计算长度与角度）
   const [pitchSize, setPitchSize] = useState<{w: number; h: number}>({w: 0, h: 0})
 
@@ -385,11 +383,11 @@ function TacticsBoard() {
   }, [teamNames, team])
 
   // ===== 触摸坐标换算（球场为 DOM 容器，无 Canvas） =====
-  // 页面用原生滚动。scroll-view 会无视子节点的 catchtouchmove，球场不能放进滚动容器。
+  // 球场 touch-action:none + 捕获层 catchMove 阻止页面滚动，视口坐标恒定，无需滚动修正
   const measurePitch = useCallback(() => {
     const query = Taro.createSelectorQuery()
     query.select('#tactics-pitch').boundingClientRect((rect: unknown) => {
-      if (drawingRef.current || !rect || typeof rect !== 'object') return
+      if (!rect || typeof rect !== 'object') return
       if (!('left' in rect) || !('top' in rect) || !('width' in rect) || !('height' in rect)) return
       const {left, top, width, height} = rect
       if (typeof left !== 'number' || typeof top !== 'number' || typeof width !== 'number' || typeof height !== 'number') return
@@ -400,14 +398,6 @@ function TacticsBoard() {
       )
     }).exec()
   }, [])
-
-  usePageScroll(({scrollTop}) => {
-    const delta = scrollTop - pageScrollRef.current
-    pageScrollRef.current = scrollTop
-    const rect = pitchRectRef.current
-    if (!rect || delta === 0 || drawingRef.current) return
-    pitchRectRef.current = {...rect, top: rect.top - delta}
-  })
 
   useReady(() => {
     setTimeout(measurePitch, 100)
@@ -439,12 +429,11 @@ function TacticsBoard() {
     )
 
   const onTouchStart = (e: any) => {
-    drawingRef.current = true
     if (!canDraw) return
-    if (e && typeof e.stopPropagation === 'function') e.stopPropagation()
-    if (e && typeof e.preventDefault === 'function') {
+    if (tool === 'player' && e && typeof e.preventDefault === 'function') {
       try { e.preventDefault() } catch {}
     }
+    measurePitch()
     const p = getCanvasPoint(e)
     if (!p) return
     if (tool === 'player') {
@@ -517,7 +506,6 @@ function TacticsBoard() {
   }
 
   const onTouchEnd = () => {
-    drawingRef.current = false
     if (!canDraw) return
     if (draggingMarkerIdx !== null) {
       setDraggingMarkerIdx(null)
@@ -1085,17 +1073,11 @@ function TacticsBoard() {
           )}
 
           {/* 球场（CSS 草坪 + DOM 棋子 + DOM 战术线，无 Canvas） */}
-          {/* 带 catchMove 的 View 才能拦住页面滚动 */}
-          <View
+          {/* 球场为普通 div + touchAction:none 阻止页面滚动；触摸由末尾的捕获层接收 */}
+          <div
             id="tactics-pitch"
             className="relative w-full rounded-2xl overflow-hidden pitch-bg shadow-lg"
-            style={{height: '125vw'}}
-            catchMove
-            hoverClass="none"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onTouchCancel={onTouchEnd}
+            style={{height: '125vw', touchAction: 'none'}}
           >
             {/* 球场标线：中线与中圈 */}
             <div
@@ -1196,7 +1178,15 @@ function TacticsBoard() {
               )
             })}
 
-          </View>
+            {/* 最上层捕获层：覆盖整个球场（含标记之上），实际接收触摸；catchMove 阻断页面滚动 */}
+            <div
+              style={{position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 50}}
+              catchMove
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            />
+          </div>
 
           <div className="flex flex-row gap-2">
             <button
