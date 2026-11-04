@@ -5,6 +5,7 @@ import Taro, {useDidShow, usePageScroll, useShareAppMessage} from '@tarojs/taro'
 import {useCallback, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
 import {Avatar} from '@/components/Avatar'
+import {SwipeRow} from '@/components/SwipeRow'
 import {LogoBg} from '@/components/LogoBg'
 import {PaymentPoster} from '@/components/PaymentPoster'
 import {withRouteGuard} from '@/components/RouteGuard'
@@ -60,6 +61,7 @@ function ActivityDetail() {
 
   const [activity, setActivity] = useState<Activity | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [swipedRegId, setSwipedRegId] = useState<string | null>(null)
   const [comments, setComments] = useState<ActivityComment[]>([])
   const [commentText, setCommentText] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
@@ -914,7 +916,29 @@ function ActivityDetail() {
                 )
                 return (
                   <div key={r.id} className="flex flex-col gap-1.5">
-                  <div className="bg-card rounded-2xl gold-frame p-3 flex items-center gap-3">
+                  <SwipeRow
+                    open={swipedRegId === r.id}
+                    onOpenChange={(o) => setSwipedRegId(o ? r.id : null)}
+                    className="rounded-2xl"
+                    actions={
+                      isAdmin ? (
+                        <button
+                          type="button"
+                          className="h-full w-full flex flex-col items-center justify-center gap-0.5 bg-destructive active:bg-destructive/80"
+                          onClick={() => {
+                            setSwipedRegId(null)
+                            handleRemoveRegistrant(r)
+                          }}
+                        >
+                          <div className="i-mdi-account-remove-outline text-xl text-primary-foreground" />
+                          <span className="text-base text-primary-foreground">移除</span>
+                        </button>
+                      ) : (
+                        <div className="h-full w-full" />
+                      )
+                    }
+                  >
+                  <div className="rounded-2xl gold-frame p-3 flex items-center gap-3">
                     <span className="w-9 text-center font-heading text-2xl text-accent">
                       {String(index + 1).padStart(2, '0')}
                     </span>
@@ -965,18 +989,8 @@ function ActivityDetail() {
                         {ability}
                       </span>
                     )}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        className="flex items-center justify-center leading-none break-keep rounded-lg border-2 border-destructive/40 shrink-0"
-                        onClick={() => handleRemoveRegistrant(r)}>
-                        <div className="px-2 py-1 flex items-center gap-0.5">
-                          <div className="i-mdi-account-remove-outline text-lg text-destructive" />
-                          <span className="text-base text-destructive">移除</span>
-                        </div>
-                      </button>
-                    )}
                   </div>
+                  </SwipeRow>
                   {/* 嘉宾行（随队员报名带入，含位置） */}
                   {regGuests.map((g) => (
                     <div key={g.id} className="bg-muted/40 rounded-xl px-3 py-2 flex items-center gap-2">
@@ -1033,7 +1047,31 @@ function ActivityDetail() {
             </p>
           ) : (
             coaches.map((r) => (
-              <div key={r.id} className="bg-background rounded-xl p-2 flex items-center gap-2">
+              <SwipeRow
+                key={r.id}
+                open={swipedRegId === r.id}
+                onOpenChange={(o) => setSwipedRegId(o ? r.id : null)}
+                className="rounded-xl"
+                contentClassName="bg-background"
+                actions={
+                  canManageTeams && r.user_id !== user?.id ? (
+                    <button
+                      type="button"
+                      className="h-full w-full flex flex-col items-center justify-center gap-0.5 bg-destructive active:bg-destructive/80"
+                      onClick={() => {
+                        setSwipedRegId(null)
+                        handleRemoveCoach(r)
+                      }}
+                    >
+                      <div className="i-mdi-account-remove-outline text-xl text-primary-foreground" />
+                      <span className="text-base text-primary-foreground">移除</span>
+                    </button>
+                  ) : (
+                    <div className="h-full w-full" />
+                  )
+                }
+              >
+              <div className="rounded-xl p-2 flex items-center gap-2">
                 <Avatar url={r.profiles?.avatar_url} name={r.profiles?.nickname} />
                 <span className="text-lg text-foreground flex-1 truncate">{r.profiles?.nickname || '队员'}</span>
                 <span className="px-1.5 py-0.5 rounded-md bg-violet-500/15 text-violet-600 text-base shrink-0">主教练</span>
@@ -1046,16 +1084,8 @@ function ActivityDetail() {
                     取消
                   </button>
                 )}
-                {canManageTeams && r.user_id !== user?.id && (
-                  <button
-                    type="button"
-                    className="px-2 py-1 rounded-md bg-destructive/10 text-destructive text-base active:scale-95"
-                    onClick={() => handleRemoveCoach(r)}
-                  >
-                    移除
-                  </button>
-                )}
               </div>
+              </SwipeRow>
             ))
           )}
         </div>

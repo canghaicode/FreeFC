@@ -1,0 +1,88 @@
+// @title 滑动行:左滑内容,右侧露出操作区(如移除按钮)
+import type {ITouchEvent} from '@tarojs/components'
+import type {ReactNode} from 'react'
+import {useRef, useState} from 'react'
+
+interface SwipeRowProps {
+  /** 当前是否展开操作区(由父级维护,多行互斥) */
+  open: boolean
+  /** 展开状态变化回调 */
+  onOpenChange: (open: boolean) => void
+  /** 滑出区宽度(px),默认 76 */
+  actionWidth?: number
+  /** 滑出区内容(通常为操作按钮) */
+  actions: ReactNode
+  /** 附加到外层容器的类名(如圆角) */
+  className?: string
+  /** 内容层底色类名,默认 bg-card */
+  contentClassName?: string
+  children: ReactNode
+}
+
+/**
+ * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
+ * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
+ */
+export function SwipeRow({open, onOpenChange, actionWidth = 76, actions, className = '', contentClassName = 'bg-card', children}: SwipeRowProps) {
+  const [dragX, setDragX] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
+
+  const onTouchStart = (e: ITouchEvent) => {
+    const t = e.touches[0]
+    if (!t) return
+    gesture.current = {startX: t.clientX, startY: t.clientY, baseX: open ? -actionWidth : 0, horizontal: null}
+  }
+
+  const onTouchMove = (e: ITouchEvent) => {
+    const g = gesture.current
+    const t = e.touches[0]
+    if (!g || !t) return
+    const dx = t.clientX - g.startX
+    const dy = t.clientY - g.startY
+    if (g.horizontal === null) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+      g.horizontal = Math.abs(dx) > Math.abs(dy)
+      if (g.horizontal) setDragging(true)
+    }
+    if (!g.horizontal) return
+    // 仅向左露出右侧操作区,位移钳制 [-actionWidth, 0]
+    setDragX(Math.max(-actionWidth, Math.min(0, g.baseX + dx)))
+  }
+
+  const onTouchEnd = () => {
+    const g = gesture.current
+    gesture.current = null
+    if (!g || !g.horizontal) {
+      setDragging(false)
+      return
+    }
+    setDragging(false)
+    onOpenChange(dragX <= -actionWidth / 2)
+    setDragX(0)
+  }
+
+  const translateX = dragging ? dragX : open ? -actionWidth : 0
+
+  return (
+    <div className={`relative overflow-hidden shadow-elegant ${className}`}>
+      <div className="absolute right-0 top-0 bottom-0 flex" style={{width: actionWidth}}>
+        {actions}
+      </div>
+      <div
+        className={`relative ${contentClassName}`}
+        style={{
+          transform: `translateX(${translateX}px)`,
+          transition: dragging ? 'none' : 'transform 0.25s ease',
+          touchAction: 'pan-y'
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
