@@ -1,6 +1,6 @@
 // @title 活动详情
 
-import {Image, Picker} from '@tarojs/components'
+import {Image, PageMeta, Picker} from '@tarojs/components'
 import Taro, {useDidShow, usePageScroll, useShareAppMessage} from '@tarojs/taro'
 import {useCallback, useMemo, useRef, useState} from 'react'
 import {supabase} from '@/client/supabase'
@@ -62,6 +62,8 @@ function ActivityDetail() {
   const [activity, setActivity] = useState<Activity | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [swipedRegId, setSwipedRegId] = useState<string | null>(null)
+  // 横向拖动卡片期间经 page-meta 禁用页面滚动
+  const [swipeGesturing, setSwipeGesturing] = useState(false)
   const [comments, setComments] = useState<ActivityComment[]>([])
   const [commentText, setCommentText] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
@@ -717,6 +719,8 @@ function ActivityDetail() {
   }
 
   return (
+    <>
+    <PageMeta pageStyle={swipeGesturing ? 'overflow: hidden;' : ''} />
     <div className="min-h-screen bg-background relative" onClick={() => setSwipedRegId(null)}>
       <LogoBg />
       <div className="px-5 pt-6 pb-32 relative z-10">
@@ -928,6 +932,7 @@ function ActivityDetail() {
                     className="rounded-2xl"
                     disabled={!isAdmin}
                     onTouchActive={holdSwipeLock}
+                    onDraggingChange={setSwipeGesturing}
                     actions={
                       isAdmin ? (
                         <button
@@ -1061,6 +1066,7 @@ function ActivityDetail() {
                 contentClassName="bg-background"
                 disabled={!(canManageTeams && r.user_id !== user?.id)}
                 onTouchActive={holdSwipeLock}
+                onDraggingChange={setSwipeGesturing}
                 actions={
                   canManageTeams && r.user_id !== user?.id ? (
                     <button
@@ -2145,6 +2151,7 @@ function ActivityDetail() {
         </div>
       )}
     </div>
+    </>
   )
 }
 
