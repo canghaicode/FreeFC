@@ -12,7 +12,7 @@ interface SwipeRowProps {
   actionWidth?: number
   /** 滑出区内容(通常为操作按钮) */
   actions: ReactNode
-  /** 附加到外层容器的类名(如圆角) */
+  /** 附加类名:圆角同时作用于外层裁切与内容层底色(如 rounded-2xl) */
   className?: string
   /** 内容层底色类名,默认 bg-card */
   contentClassName?: string
@@ -70,7 +70,7 @@ export function SwipeRow({open, onOpenChange, actionWidth = 80, actions, classNa
         {actions}
       </div>
       <div
-        className={`relative ${contentClassName}`}
+        className={`relative overflow-hidden ${contentClassName} ${className}`}
         style={{
           transform: `translateX(${translateX}px)`,
           transition: dragging ? 'none' : 'transform 0.25s ease',
