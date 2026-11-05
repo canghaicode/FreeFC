@@ -1,5 +1,6 @@
 // @title 滑动行:左滑内容,右侧露出操作区(如移除按钮)
 import type {ITouchEvent} from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import type {ReactNode} from 'react'
 import {memo, useRef, useState} from 'react'
 
@@ -25,6 +26,12 @@ interface SwipeRowProps {
   children: ReactNode
 }
 
+/** 松手吸附:先快后慢 */
+const SNAP = 'transform 0.42s cubic-bezier(0.16, 1, 0.3, 1)'
+/** 卡片跟随手指的比例,稍降整体滑动速度 */
+const DRAG_RATIO = 0.85
+/** 快速手势最多约每帧跨逻辑层更新一次 */
+const MIN_PAINT_INTERVAL = 14
 
 interface PaintStyle {
   transform: string
@@ -45,22 +52,23 @@ function paintOf(node: unknown): PaintStyle | null {
 
 /**
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
- * 松手按是否过半直接展开/收起,不做吸附动画。
+ * 跟手速度略低于手指,松手后按是否过半渐缓吸附展开/收起。
  */
 export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, onSwipeStart, children}: SwipeRowProps) {
   const sheetRef = useRef<unknown>(null)
   const dragXRef = useRef(0)
   const draggingRef = useRef(false)
   const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
+  const lastPaintAtRef = useRef(0)
   // 仅在松手吸附或直写失败时刷新,拖动过程不 setState
   const [epoch, setEpoch] = useState(0)
 
   const clamp = (x: number) => Math.round(Math.max(-actionWidth, Math.min(0, x)))
 
-  const paint = (x: number) => {
+  const paint = (x: number, transition: string) => {
     const style = paintOf(sheetRef.current)
     if (!style) return false
-    style.transition = 'none'
+    style.transition = transition
     style.transform = `translateX(${x}px)`
     return true
   }
@@ -71,6 +79,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
     if (!t) return
     const baseX = open ? -actionWidth : 0
     dragXRef.current = baseX
+    lastPaintAtRef.current = 0
     gesture.current = {startX: t.clientX, startY: t.clientY, baseX, horizontal: null}
   }
 
@@ -88,9 +97,10 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
       if (ax > ay * 2) {
         g.horizontal = true
         draggingRef.current = true
-        const x = clamp(g.baseX + dx)
+        const x = clamp(g.baseX + dx * DRAG_RATIO)
         dragXRef.current = x
-        if (!paint(x)) setEpoch((n) => n + 1)
+        lastPaintAtRef.current = Date.now()
+        if (!paint(x, 'none')) setEpoch((n) => n + 1)
         onTouchActive?.()
         onSwipeStart?.()
       } else if (ay > ax * 2) {
@@ -100,10 +110,13 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
     }
     if (!g.horizontal) return
     onTouchActive?.()
-    const x = clamp(g.baseX + dx)
+    const x = clamp(g.baseX + dx * DRAG_RATIO)
     if (x === dragXRef.current) return
     dragXRef.current = x
-    if (!paint(x)) setEpoch((n) => n + 1)
+    const now = Date.now()
+    if (now - lastPaintAtRef.current < MIN_PAINT_INTERVAL) return
+    lastPaintAtRef.current = now
+    if (!paint(x, 'none')) setEpoch((n) => n + 1)
   }
 
   const onTouchEnd = () => {
@@ -114,13 +127,18 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
       draggingRef.current = false
       return
     }
-    const shouldOpen = dragXRef.current <= -actionWidth / 2
+    const from = dragXRef.current
+    const shouldOpen = from <= -actionWidth / 2
     const finalX = shouldOpen ? -actionWidth : 0
-    dragXRef.current = finalX
-    draggingRef.current = false
-    const painted = paint(finalX)
-    onOpenChange(shouldOpen)
-    if (!painted) setEpoch((n) => n + 1)
+    // 先补齐快速手势被合并的最后位置,下一帧再渐缓吸附到端点
+    paint(from, 'none')
+    Taro.nextTick(() => {
+      dragXRef.current = finalX
+      draggingRef.current = false
+      const painted = paint(finalX, SNAP)
+      onOpenChange(shouldOpen)
+      if (!painted) setEpoch((n) => n + 1)
+    })
   }
 
   const follow = draggingRef.current
@@ -141,7 +159,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         className="relative"
         style={{
           transform: `translateX(${disabled ? 0 : translateX}px)`,
-          transition: 'none',
+          transition: follow ? 'none' : SNAP,
           touchAction: 'pan-y',
           // 固定层级:避免浮起/放下时 zIndex 切换触发微信重建合成层,导致内部 Image 闪暗
           zIndex: 20
