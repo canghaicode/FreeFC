@@ -27,7 +27,7 @@ interface SwipeRowProps {
 }
 
 /** 松手吸附:先快后慢 */
-const SNAP = 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)'
+const SNAP = 'transform 0.42s cubic-bezier(0.16, 1, 0.3, 1)'
 
 interface PaintStyle {
   transform: string
