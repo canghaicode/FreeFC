@@ -138,14 +138,15 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                           {[0, 1, 2, 3, 4].map((index) => {
                             const half = index * 2 + 1
                             const full = half + 1
-                            const icon = value >= full
-                              ? 'i-mdi-star'
-                              : value === half
-                                ? 'i-mdi-star-half-full'
-                                : 'i-mdi-star-outline'
+                            const fillWidth = value >= full ? 'w-full' : value === half ? 'w-1/2' : 'w-0'
                             return (
                               <div key={index} className="relative w-7 h-10 flex items-center justify-center">
-                                <div className={`${icon} text-3xl ${value >= half ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
+                                <div className="i-lucide-star text-[1.75rem] text-muted-foreground/35" />
+                                <div className={`absolute left-0 top-0 bottom-0 overflow-hidden ${fillWidth}`}>
+                                  <div className="absolute left-0 top-0 w-7 h-10 flex items-center justify-center">
+                                    <div className="i-lucide-star text-[1.75rem] text-amber-500" />
+                                  </div>
+                                </div>
                                 <div className="absolute left-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, half)} />
                                 <div className="absolute right-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, full)} />
                               </div>
