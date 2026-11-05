@@ -110,7 +110,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
             <div className="flex items-center gap-2 min-w-0">
               <div className="i-mdi-star-half-full text-3xl text-primary shrink-0" />
               <div className="min-w-0">
-                <h3 className="font-heading text-2xl text-foreground">赛后匿名评分</h3>
+                <h3 className="font-heading text-2xl text-foreground">赛后评分</h3>
                 <p className="text-base text-muted-foreground">按本场实际表现评分，可留空不评</p>
               </div>
             </div>
@@ -131,9 +131,14 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                     const score = scores[member.id]
                     const value = score ?? 0
                     return (
-                      <div key={member.id} className="h-16 px-3 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
-                        <div className="shrink-0"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
-                        <span className="flex-1 min-w-0 text-base text-foreground truncate">{member.nickname || '队员'}</span>
+                      <div key={member.id} className="h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
+                        <div className="h-full shrink-0 flex items-center justify-center mr-1.5"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
+                          <span className="text-sm text-foreground truncate">{member.nickname || '队员'}</span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {`${member.jersey_number != null ? `#${member.jersey_number}` : '#--'} ${member.position || '未定'}`}
+                          </span>
+                        </div>
                         <div className="flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
                           {[0, 1, 2, 3, 4].map((index) => {
                             const half = index * 2 + 1
@@ -155,7 +160,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                         </div>
                         <button
                           type="button"
-                          className={`w-6 h-10 flex items-center justify-end font-heading text-lg shrink-0 ${score ? 'text-primary' : 'text-muted-foreground/40'}`}
+                          className={`w-5 h-10 flex items-center justify-end font-heading text-base shrink-0 ${score ? 'text-primary' : 'text-muted-foreground/40'}`}
                           aria-label={score ? `清除${member.nickname || '队员'}的${score}分` : `${member.nickname || '队员'}尚未评分`}
                           onClick={() => clearScore(member.id)}
                         >

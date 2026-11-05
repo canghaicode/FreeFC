@@ -1512,6 +1512,7 @@ export interface PostMatchRatingParticipant {
   nickname: string | null
   avatar_url: string | null
   jersey_number: number | null
+  position: string | null
   team: string | null
 }
 

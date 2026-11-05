@@ -852,7 +852,7 @@ function ActivityDetail() {
               >
                 <div className="py-3 flex items-center gap-2">
                   <div className="i-mdi-star-half-full text-2xl text-amber-600" />
-                  <span className="text-xl text-amber-700">填写赛后匿名评分</span>
+                  <span className="text-xl text-amber-700">填写赛后评分</span>
                 </div>
               </button>
             )

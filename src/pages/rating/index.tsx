@@ -81,7 +81,7 @@ export default function RatingPage() {
         rating: member.hidden_rating,
         meta: member.match_count > 0
           ? `最近10场评分 · ${member.match_count}场 · 被评分${member.rating_count}次`
-          : '暂无赛后匿名评分',
+          : '暂无赛后评分',
         detail: member.match_count > 0
           ? `管理员${member.admin_rating_count}次 · 队员${member.player_rating_count}次`
           : null
