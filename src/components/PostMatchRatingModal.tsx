@@ -15,6 +15,16 @@ interface PostMatchRatingModalProps {
 }
 
 const TEAM_ORDER = ['A', 'B', 'C', 'D', '未分队'] as const
+const POSITION_LABEL: Record<string, string> = {
+  前锋: '前',
+  中场: '中',
+  后卫: '后',
+  门将: '门',
+  ST: '前',
+  CM: '中',
+  CB: '后',
+  GK: '门'
+}
 
 export function PostMatchRatingModal({visible, activityId, form, onClose, onSubmitted}: PostMatchRatingModalProps) {
   const [scores, setScores] = useState<Record<string, number>>({})
@@ -133,10 +143,10 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                     return (
                       <div key={member.id} className="h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
                         <div className="h-full shrink-0 flex items-center justify-center mr-1.5"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
-                        <div className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
-                          <span className="text-sm text-foreground truncate">{member.nickname || '队员'}</span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {`${member.jersey_number != null ? `#${member.jersey_number}` : '#--'} ${member.position || '未定'}`}
+                        <div className="flex-1 min-w-0 flex items-center gap-0.5 whitespace-nowrap">
+                          <span className="flex-1 min-w-0 text-sm text-foreground truncate">{member.nickname || '队员'}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {member.jersey_number ?? '--'}·{POSITION_LABEL[member.position || ''] || '未'}
                           </span>
                         </div>
                         <div className="flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
