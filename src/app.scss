@@ -136,6 +136,10 @@
       inset 0 0 0 2rpx hsl(var(--gold) / 0.28),
       var(--shadow-elegant);
   }
+  /* 滑动行已有外层阴影；内容层会裁切 gold-frame 的外阴影，避免重复栅格化 */
+  .swipe-row-content .gold-frame {
+    box-shadow: inset 0 0 0 2rpx hsl(var(--gold) / 0.28);
+  }
   /* 金色下划强调线（标题、重点文字） */
   .gold-underline {
     background-image: linear-gradient(90deg, hsl(var(--gold)), hsl(var(--gold) / 0.15));

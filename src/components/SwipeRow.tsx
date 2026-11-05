@@ -58,7 +58,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
   // 仅在松手吸附或直写失败时刷新,拖动过程不 setState
   const [epoch, setEpoch] = useState(0)
 
-  const clamp = (x: number) => Math.max(-actionWidth, Math.min(0, x))
+  const clamp = (x: number) => Math.round(Math.max(-actionWidth, Math.min(0, x)))
 
   const paint = (x: number, transition: string) => {
     const style = paintOf(sheetRef.current)
@@ -125,9 +125,9 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
     Taro.nextTick(() => {
       dragXRef.current = finalX
       draggingRef.current = false
-      paint(finalX, SNAP)
+      const painted = paint(finalX, SNAP)
       onOpenChange(shouldOpen)
-      setEpoch((n) => n + 1)
+      if (!painted) setEpoch((n) => n + 1)
     })
   }
 
@@ -159,7 +159,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         onTouchEnd={disabled ? undefined : onTouchEnd}
         onTouchCancel={disabled ? undefined : onTouchEnd}
       >
-        <div className={`overflow-hidden ${contentClassName} ${className}`}>{children}</div>
+        <div className={`swipe-row-content overflow-hidden ${contentClassName} ${className}`}>{children}</div>
       </div>
     </div>
   )
