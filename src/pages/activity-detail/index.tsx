@@ -189,16 +189,18 @@ function ActivityDetail() {
 
   const [barHidden, setBarHidden] = useState(false)
   const lastScrollTop = useRef(0)
-  // 触摸滑动行期间(及松手后 300ms 内)抑制滚动触发的自动收回,防止拖动手势误触页面微滚
+  // 触摸滑动行期间(及松手后 400ms 内)抑制滚动触发的自动收回和底栏刷新,防止拖动时整页重渲染
   const swipeLockUntil = useRef(0)
   const holdSwipeLock = useCallback(() => {
-    swipeLockUntil.current = Date.now() + 300
+    swipeLockUntil.current = Date.now() + 400
   }, [])
   // 往下滚动隐藏底部报名按钮(单帧 >2),往上大幅滚动(单帧 <-20)才弹出,避免轻微下滑误弹出
   usePageScroll(({scrollTop}: {scrollTop: number}) => {
-    if (Date.now() >= swipeLockUntil.current) setSwipedRegId(null)
+    const locked = Date.now() < swipeLockUntil.current
+    if (!locked) setSwipedRegId(null)
     const delta = scrollTop - lastScrollTop.current
     lastScrollTop.current = scrollTop
+    if (locked) return
     if (scrollTop <= 0) {
       setBarHidden(false)
       return

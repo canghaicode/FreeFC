@@ -1,5 +1,6 @@
 // @title 滑动行:左滑内容,右侧露出操作区(如移除按钮)
 import type {ITouchEvent} from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import type {ReactNode} from 'react'
 import {memo, useRef, useState} from 'react'
 
@@ -25,22 +26,46 @@ interface SwipeRowProps {
   children: ReactNode
 }
 
+/** 松手吸附:先快后慢 */
+const SNAP = 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)'
+
+interface PaintStyle {
+  transform: string
+  transition: string
+}
+
+function isPaintStyle(style: object): style is PaintStyle {
+  return 'transform' in style && 'transition' in style
+}
+
+/** 跟手只写节点 style,不走 setState,避免每帧重渲染头像等内容 */
+function paintOf(node: unknown): PaintStyle | null {
+  if (typeof node !== 'object' || node === null || !('style' in node)) return null
+  const style = node.style
+  if (typeof style !== 'object' || style === null || !isPaintStyle(style)) return null
+  return style
+}
 
 /**
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
- * 松手按是否过半吸附展开/收起,transition 提供回弹动画。
+ * 松手按是否过半吸附展开/收起,transition 提供先快后慢的回弹。
  */
 export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, onSwipeStart, children}: SwipeRowProps) {
-  const [dragX, setDragX] = useState(0)
-  const [dragging, setDragging] = useState(false)
+  const sheetRef = useRef<unknown>(null)
   const dragXRef = useRef(0)
+  const draggingRef = useRef(false)
   const gesture = useRef<{startX: number; startY: number; baseX: number; horizontal: boolean | null} | null>(null)
+  // 仅在松手吸附或直写失败时刷新,拖动过程不 setState
+  const [epoch, setEpoch] = useState(0)
 
-  const applyX = (x: number) => {
-    const next = Math.max(-actionWidth, Math.min(0, x))
-    if (next === dragXRef.current) return
-    dragXRef.current = next
-    setDragX(next)
+  const clamp = (x: number) => Math.max(-actionWidth, Math.min(0, x))
+
+  const paint = (x: number, transition: string) => {
+    const style = paintOf(sheetRef.current)
+    if (!style) return false
+    style.transition = transition
+    style.transform = `translateX(${x}px)`
+    return true
   }
 
   const onTouchStart = (e: ITouchEvent) => {
@@ -65,16 +90,23 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
       // 角度加严:水平分量需 2 倍于垂直(约 27° 内)才判为横向滑开;垂直同理;中间模糊带继续等待
       if (ax > ay * 2) {
         g.horizontal = true
+        draggingRef.current = true
+        const x = clamp(g.baseX + dx)
+        dragXRef.current = x
+        if (!paint(x, 'none')) setEpoch((n) => n + 1)
+        onTouchActive?.()
         onSwipeStart?.()
-        applyX(g.baseX + dx)
-        setDragging(true)
       } else if (ay > ax * 2) {
         g.horizontal = false
       }
       return
     }
     if (!g.horizontal) return
-    applyX(g.baseX + dx)
+    onTouchActive?.()
+    const x = clamp(g.baseX + dx)
+    if (x === dragXRef.current) return
+    dragXRef.current = x
+    if (!paint(x, 'none')) setEpoch((n) => n + 1)
   }
 
   const onTouchEnd = () => {
@@ -82,17 +114,26 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
     const g = gesture.current
     gesture.current = null
     if (!g || !g.horizontal) {
-      setDragging(false)
+      draggingRef.current = false
       return
     }
-    const shouldOpen = dragXRef.current <= -actionWidth / 2
-    dragXRef.current = shouldOpen ? -actionWidth : 0
-    setDragX(dragXRef.current)
-    setDragging(false)
-    onOpenChange(shouldOpen)
+    const from = dragXRef.current
+    const shouldOpen = from <= -actionWidth / 2
+    const finalX = shouldOpen ? -actionWidth : 0
+    // 先挂上渐缓,下一帧再改目标,否则微信会把过渡和位移合成一次,动画被吃掉
+    paint(from, SNAP)
+    Taro.nextTick(() => {
+      dragXRef.current = finalX
+      draggingRef.current = false
+      paint(finalX, SNAP)
+      onOpenChange(shouldOpen)
+      setEpoch((n) => n + 1)
+    })
   }
 
-  const translateX = dragging ? dragX : open ? -actionWidth : 0
+  const follow = draggingRef.current
+  const translateX = follow ? dragXRef.current : open ? -actionWidth : 0
+  void epoch
 
   return (
     <div className={`relative shadow-elegant ${className}`}>
@@ -104,12 +145,12 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         </div>
       )}
       <div
-        className={`relative overflow-hidden ${contentClassName} ${className}`}
+        ref={sheetRef}
+        className="relative"
         style={{
           transform: `translateX(${disabled ? 0 : translateX}px)`,
-          transition: dragging ? 'none' : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
+          transition: follow ? 'none' : SNAP,
           touchAction: 'pan-y',
-          willChange: 'transform',
           // 固定层级:避免浮起/放下时 zIndex 切换触发微信重建合成层,导致内部 Image 闪暗
           zIndex: 20
         }}
@@ -118,7 +159,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         onTouchEnd={disabled ? undefined : onTouchEnd}
         onTouchCancel={disabled ? undefined : onTouchEnd}
       >
-        {children}
+        <div className={`overflow-hidden ${contentClassName} ${className}`}>{children}</div>
       </div>
     </div>
   )
