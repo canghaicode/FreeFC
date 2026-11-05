@@ -387,12 +387,16 @@ export function SharePoster({visible, activity, joinedCount, onClose}: SharePost
       {/* 预览图 */}
       {posterUrl ? (
         <div className="scale-in flex flex-col items-center gap-4 max-h-[75vh]">
-          <Image
-            src={posterUrl}
-            mode="aspectFit"
-            className="rounded-2xl gold-frame"
-            style={{width: '70vw', height: '60vh'}}
-          />
+          <div className="rounded-2xl overflow-hidden gold-frame" style={{width: '70vw', lineHeight: 0}}>
+            <Image
+              src={posterUrl}
+              mode="widthFix"
+              className="block"
+              style={{width: '100%', display: 'block'}}
+              showMenuByLongpress
+            />
+          </div>
+          <p className="text-base text-white/80 text-center">长按海报可保存或转发给朋友、群聊</p>
           <div className="flex flex-row gap-3">
             <button
               type="button"
