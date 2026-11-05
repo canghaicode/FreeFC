@@ -141,13 +141,13 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                     const score = scores[member.id]
                     const value = score ?? 0
                     return (
-                      <div key={member.id} className="h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
+                      <div key={member.id} className="relative h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
                         <div className="h-full shrink-0 flex items-center justify-center mr-1.5"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
-                        <span className="flex-1 min-w-0 text-sm text-foreground truncate whitespace-nowrap">{member.nickname || '队员'}</span>
-                        <span className="w-6 shrink-0 text-center text-xs text-muted-foreground whitespace-nowrap">
+                        <span className="w-[25%] min-w-0 shrink-0 text-sm text-foreground truncate whitespace-nowrap">{member.nickname || '队员'}</span>
+                        <span className="absolute left-1/2 -translate-x-1/2 w-6 text-center text-xs text-muted-foreground whitespace-nowrap">
                           {member.jersey_number ?? '--'}·{POSITION_LABEL[member.position || ''] || '未'}
                         </span>
-                        <div className="flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
+                        <div className="ml-auto flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
                           {[0, 1, 2, 3, 4].map((index) => {
                             const half = index * 2 + 1
                             const full = half + 1

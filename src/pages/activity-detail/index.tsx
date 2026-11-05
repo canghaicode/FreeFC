@@ -842,7 +842,7 @@ function ActivityDetail() {
             postMatchRatingForm.submitted ? (
               <div className="mt-3 rounded-xl px-4 py-3 flex items-center gap-2 bg-amber-500/10">
                 <div className="i-mdi-check-decagram-outline text-2xl text-amber-600" />
-                <span className="text-lg text-amber-700">本场匿名表现评分已提交</span>
+                <span className="text-lg text-amber-700">本场表现评分已提交</span>
               </div>
             ) : (
               <button
