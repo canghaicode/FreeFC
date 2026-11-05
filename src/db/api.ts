@@ -1505,6 +1505,95 @@ export async function submitPlayerRating(ratedId: string, score: number, tags: s
   return true
 }
 
+/* ---------------- 赛后匿名表现分 ---------------- */
+
+export interface PostMatchRatingParticipant {
+  id: string
+  nickname: string | null
+  avatar_url: string | null
+  jersey_number: number | null
+  team: string | null
+}
+
+export interface PostMatchRatingForm {
+  eligible: boolean
+  submitted: boolean
+  should_prompt: boolean
+  reason: string | null
+  expires_at: string | null
+  participants: PostMatchRatingParticipant[]
+}
+
+export interface PostMatchRatingInput {
+  rated_id: string
+  score: number
+}
+
+export interface HiddenRatingMemberRow {
+  id: string
+  nickname: string | null
+  avatar_url: string | null
+  jersey_number: number | null
+  preferred_position: string | null
+  hidden_rating: number | null
+  match_count: number
+  admin_rating_count: number
+  player_rating_count: number
+  rating_count: number
+  first_match_at: string | null
+  last_match_at: string | null
+}
+
+/** 当前账号在指定活动的赛后匿名评分资格与候选人。 */
+export async function getPostMatchRatingForm(activityId: string): Promise<PostMatchRatingForm | null> {
+  const {data, error} = await supabase.rpc('get_post_match_rating_form', {p_activity_id: activityId})
+  if (error) {
+    console.error('getPostMatchRatingForm failed:', error.message)
+    return null
+  }
+  const row = data as Partial<PostMatchRatingForm> | null
+  if (!row) return null
+  return {
+    eligible: !!row.eligible,
+    submitted: !!row.submitted,
+    should_prompt: !!row.should_prompt,
+    reason: row.reason || null,
+    expires_at: row.expires_at || null,
+    participants: Array.isArray(row.participants) ? row.participants : []
+  }
+}
+
+/** 一次性提交本场已选择的匿名评分；未选择项不写入。 */
+export async function submitPostMatchRatings(activityId: string, ratings: PostMatchRatingInput[]): Promise<{ok: boolean; message: string}> {
+  const {data, error} = await supabase.rpc('submit_post_match_ratings', {
+    p_activity_id: activityId,
+    p_ratings: ratings
+  })
+  if (error) {
+    console.error('submitPostMatchRatings failed:', error.message)
+    return {ok: false, message: error.message || '提交失败'}
+  }
+  const result = data as {ok?: boolean; message?: string} | null
+  return {ok: !!result?.ok, message: result?.message || (result?.ok ? '匿名评分已提交' : '提交失败')}
+}
+
+/** 管理员隐藏分榜单：最近10场有评分比赛，单场按管理员70%/队员30%合成。 */
+export async function getHiddenRatingMembers(): Promise<HiddenRatingMemberRow[]> {
+  const {data, error} = await supabase.rpc('get_hidden_rating_members')
+  if (error) {
+    console.error('getHiddenRatingMembers failed:', error.message)
+    return []
+  }
+  return ((data || []) as HiddenRatingMemberRow[]).map((row) => ({
+    ...row,
+    hidden_rating: row.hidden_rating == null ? null : Number(row.hidden_rating),
+    match_count: Number(row.match_count),
+    admin_rating_count: Number(row.admin_rating_count),
+    player_rating_count: Number(row.player_rating_count),
+    rating_count: Number(row.rating_count)
+  }))
+}
+
 /* ---------------- MVP 榜 ---------------- */
 
 export interface MvpRankRow {

@@ -8,6 +8,7 @@ import {Avatar} from '@/components/Avatar'
 import {SwipeRow} from '@/components/SwipeRow'
 import {LogoBg} from '@/components/LogoBg'
 import {PaymentPoster} from '@/components/PaymentPoster'
+import {PostMatchRatingModal} from '@/components/PostMatchRatingModal'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {SharePoster} from '@/components/SharePoster'
 import {TitleBadge} from '@/components/TitleBadge'
@@ -15,12 +16,13 @@ import {canWithdrawByRule, defaultMatchFees, formatActivityTime, HONOR_BADGES, M
 import {useAuth} from '@/contexts/AuthContext'
 import {
   addActivityComment, autoSplitTeams, cancelActivity, cancelRegistration, castMatchVote, deleteActivity, getActivity,
-  getActivityComments, getDefenderVoteInfo, getMatchSummary, getMatchVotes, getMyLikedCommentIds,getMyMatchVotes, getPaymentQr, getPlayerAvgRatings,
-  getRegistrationsWithProfiles, getSeasonStats, joinWithSeat, removeRegistration,
+  getActivityComments, getDefenderVoteInfo, getHiddenRatingMembers, getMatchSummary, getMatchVotes, getMyLikedCommentIds, getMyMatchVotes,
+  getPaymentQr, getPostMatchRatingForm, getRegistrationsWithProfiles, getSeasonStats, joinWithSeat, removeRegistration,
   saveMatchSummary, setGuestPosition, setGuestTeam, setPaymentQr, setRegistrationPosition, setRegistrationSeat,
-  setRegistrationTeam, settleActivityActivity, toggleCommentLike, 
-  updateOwnProfile 
+  setRegistrationTeam, settleActivityActivity, toggleCommentLike,
+  updateOwnProfile
 } from '@/db/api'
+import type {PostMatchRatingForm} from '@/db/api'
 import type {Activity, ActivityComment, MatchSummary, MatchVoteRow, Registration, SeasonStatsRow} from '@/db/types'
 import {selectMediaFiles, uploadToSupabase} from '@/utils/upload'
 
@@ -106,17 +108,17 @@ function ActivityDetail() {
   const [goalRank, setGoalRank] = useState<Map<string, number>>(new Map())
   const [assistRank, setAssistRank] = useState<Map<string, number>>(new Map())
   const [defenseRank, setDefenseRank] = useState<Map<string, number>>(new Map())
-  const [avgRatings, setAvgRatings] = useState<Record<string, number>>({})
+  const [hiddenRatings, setHiddenRatings] = useState<Record<string, number>>({})
+  const [postMatchRatingForm, setPostMatchRatingForm] = useState<PostMatchRatingForm | null>(null)
+  const [showPostMatchRating, setShowPostMatchRating] = useState(false)
+  const ratingPromptDismissedRef = useRef(false)
 
   const loadData = useCallback(async () => {
     if (!id) return
     setLoading(true)
     const act = await getActivity(id)
-    const [registrationData, cmts, sm, mv, myv, liked, qr, stats, defender] = await Promise.all([
-      getRegistrationsWithProfiles(id).then(async (regs) => ({
-        regs,
-        avgs: regs.length > 0 ? await getPlayerAvgRatings(regs.map((r) => r.user_id)) : new Map()
-      })),
+    const [regs, cmts, sm, mv, myv, liked, qr, stats, defender, ratingForm, hiddenRows] = await Promise.all([
+      getRegistrationsWithProfiles(id),
       getActivityComments(id),
       getMatchSummary(id),
       getMatchVotes(id),
@@ -124,14 +126,17 @@ function ActivityDetail() {
       getMyLikedCommentIds(id),
       getPaymentQr(),
       act?.season_id ? getSeasonStats(act.season_id) : Promise.resolve([]),
-      act?.season_id ? getDefenderVoteInfo(act.season_id) : Promise.resolve(null)
+      act?.season_id ? getDefenderVoteInfo(act.season_id) : Promise.resolve(null),
+      getPostMatchRatingForm(id),
+      profile?.role === 'admin' ? getHiddenRatingMembers() : Promise.resolve([])
     ])
-    const regs = registrationData.regs
-    const ratingMap: Record<string, number> = {}
-    registrationData.avgs.forEach((rating, uid) => {
-      ratingMap[uid] = Number(rating.avg_rating)
+    const hiddenMap: Record<string, number> = {}
+    hiddenRows.forEach((row) => {
+      if (row.hidden_rating != null) hiddenMap[row.id] = row.hidden_rating
     })
-    setAvgRatings(ratingMap)
+    setHiddenRatings(hiddenMap)
+    setPostMatchRatingForm(ratingForm)
+    if (ratingForm?.should_prompt && !ratingPromptDismissedRef.current) setShowPostMatchRating(true)
     if (qr) {
       setPaymentQrUrl(qr.url)
       setPaymentQrOwner(qr.owner)
@@ -176,7 +181,7 @@ function ActivityDetail() {
     })
     setDefenseRank(defenseMap)
     setLoading(false)
-  }, [id])
+  }, [id, profile?.role])
 
   useDidShow(() => {
     loadData()
@@ -276,6 +281,16 @@ function ActivityDetail() {
   const reportOpen = ended && !cancelled && new Date(activity!.end_time || activity!.activity_time).getTime() + 12 * 3600 * 1000 > Date.now()
   const full = count >= maxPlayers
 
+  const closePostMatchRating = () => {
+    ratingPromptDismissedRef.current = true
+    setShowPostMatchRating(false)
+  }
+
+  const markPostMatchRatingSubmitted = () => {
+    ratingPromptDismissedRef.current = true
+    setShowPostMatchRating(false)
+    setPostMatchRatingForm((current) => current ? {...current, submitted: true, should_prompt: false} : current)
+  }
   /** 按活动设置的取消截止规则判断（发起人手动移除不受此限制） */
   const withdrawCheck = canWithdrawByRule(activity)
   const canWithdraw = withdrawCheck.allowed
@@ -823,6 +838,25 @@ function ActivityDetail() {
               </span>
             </div>
           )}
+          {postMatchRatingForm?.eligible && (
+            postMatchRatingForm.submitted ? (
+              <div className="mt-3 rounded-xl px-4 py-3 flex items-center gap-2 bg-amber-500/10">
+                <div className="i-mdi-check-decagram-outline text-2xl text-amber-600" />
+                <span className="text-lg text-amber-700">本场匿名表现评分已提交</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="w-full mt-3 rounded-xl border-2 border-amber-500/40 bg-amber-500/10 flex items-center justify-center"
+                onClick={() => setShowPostMatchRating(true)}
+              >
+                <div className="py-3 flex items-center gap-2">
+                  <div className="i-mdi-star-half-full text-2xl text-amber-600" />
+                  <span className="text-xl text-amber-700">填写赛后匿名评分</span>
+                </div>
+              </button>
+            )
+          )}
 
           <div className="flex flex-col gap-3 mt-3">
             <div className="flex items-center gap-2">
@@ -1126,8 +1160,8 @@ function ActivityDetail() {
                 const list = teamList(tk)
                 const otherKeys = teamKeys.filter((k) => k !== tk)
                 const teamGuests = allGuests.filter((g) => g.team === tk)
-                // 队伍综合分：队员按平均分（无评分默认6.0），嘉宾按6.0
-                const memberScores = list.map((r) => avgRatings[r.user_id] ?? 6.0)
+                // 仅管理员可见隐藏分；无评分队员和嘉宾按中性基准6.0估算。
+                const memberScores = list.map((r) => hiddenRatings[r.user_id] ?? 6.0)
                 const guestScores = teamGuests.map(() => 6.0)
                 const teamTotal = [...memberScores, ...guestScores].reduce((s, v) => s + v, 0)
                 const teamCount = memberScores.length + guestScores.length
@@ -1169,9 +1203,9 @@ function ActivityDetail() {
                       <span className={`w-3.5 h-3.5 rounded-full ${teamColor(tk)}`} />
                       <span className="text-2xl font-heading font-bold text-foreground">{tk}队</span>
                       <span className="text-lg text-muted-foreground">{teamCount}人</span>
-                      {teamCount > 0 && (
+                      {canManageTeams && teamCount > 0 && (
                         <div className="ml-auto bg-primary/10 rounded-lg px-3 py-1 flex items-center gap-2">
-                          <span className="text-base text-primary">总分 {(Math.round(teamTotal * 10) / 10).toFixed(1)}</span>
+                          <span className="text-base text-primary">隐藏总分 {(Math.round(teamTotal * 10) / 10).toFixed(1)}</span>
                           <span className="text-base text-primary/80">均分 {(Math.round(teamAvg * 10) / 10).toFixed(1)}</span>
                         </div>
                       )}
@@ -1186,7 +1220,7 @@ function ActivityDetail() {
                           </div>
                           {s.players.map((r) => {
                             const p = r.profiles
-                            const rating = avgRatings[r.user_id]
+                            const rating = hiddenRatings[r.user_id]
                             return (
                               <div key={r.id} className="flex items-center gap-2.5">
                                 <Avatar url={p?.avatar_url} name={p?.nickname} />
@@ -1197,9 +1231,11 @@ function ActivityDetail() {
                                   </span>
                                   <PosChip label={posOf(r)} onPick={(v) => handleSetPlayerPosition(r.id, v)} />
                                 </div>
-                                <span className={`font-heading text-2xl shrink-0 ${rating ? 'text-primary' : 'text-muted-foreground/50'}`}>
-                                  {(rating ?? 6.0).toFixed(1)}
-                                </span>
+                                {canManageTeams && (
+                                  <span className={`font-heading text-2xl shrink-0 ${rating ? 'text-primary' : 'text-muted-foreground/50'}`}>
+                                    {(rating ?? 6.0).toFixed(1)}
+                                  </span>
+                                )}
                                 {canManageTeams && (
                                   <button
                                     type="button"
@@ -1236,7 +1272,7 @@ function ActivityDetail() {
                                 </span>
                                 <PosChip label={positionShort(g.position)} onPick={(v) => handleSetGuestPosition(g.id, v)} />
                               </div>
-                              <span className="font-heading text-2xl text-muted-foreground/70 shrink-0">6.0</span>
+                              {canManageTeams && <span className="font-heading text-2xl text-muted-foreground/70 shrink-0">6.0</span>}
                               {canManageTeams && otherKeys.length > 0 && (
                                 <div className="flex flex-row gap-1 shrink-0">
                                   {otherKeys.slice(0, 2).map((ok) => (
@@ -1264,7 +1300,7 @@ function ActivityDetail() {
                           </div>
                           {noPosPlayers.map((r) => {
                             const p = r.profiles
-                            const rating = avgRatings[r.user_id]
+                            const rating = hiddenRatings[r.user_id]
                             return (
                               <div key={r.id} className="flex items-center gap-2.5">
                                 <Avatar url={p?.avatar_url} name={p?.nickname} />
@@ -1275,9 +1311,11 @@ function ActivityDetail() {
                                   </span>
                                   <PosChip label={posOf(r)} onPick={(v) => handleSetPlayerPosition(r.id, v)} />
                                 </div>
-                                <span className={`font-heading text-2xl shrink-0 ${rating ? 'text-primary' : 'text-muted-foreground/50'}`}>
-                                  {(rating ?? 6.0).toFixed(1)}
-                                </span>
+                                {canManageTeams && (
+                                  <span className={`font-heading text-2xl shrink-0 ${rating ? 'text-primary' : 'text-muted-foreground/50'}`}>
+                                    {(rating ?? 6.0).toFixed(1)}
+                                  </span>
+                                )}
                                 {canManageTeams && otherKeys.length > 0 && (
                                   <div className="flex flex-row gap-1 shrink-0">
                                     {otherKeys.slice(0, 2).map((ok) => (
@@ -1699,6 +1737,14 @@ function ActivityDetail() {
         activity={activity}
         joinedCount={count}
         onClose={() => setShowPoster(false)}
+      />
+
+      <PostMatchRatingModal
+        visible={showPostMatchRating}
+        activityId={id}
+        form={postMatchRatingForm}
+        onClose={closePostMatchRating}
+        onSubmitted={markPostMatchRatingSubmitted}
       />
 
       <PaymentPoster

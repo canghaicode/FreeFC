@@ -13,11 +13,11 @@ const SECTIONS = [
   },
   {
     title: '二、我们收集的信息',
-    body: '为提供球队管理服务，我们可能收集以下信息：\n1. 账号信息：您注册时填写的昵称、头像；\n2. 业务数据：您的出勤记录、比赛数据、能力评分、投票记录、装备信息等；\n3. 设备信息：为保障服务正常运行所需的设备标识等基础信息。'
+    body: '为提供球队管理服务，我们可能收集以下信息：\n1. 账号信息：您注册时填写的昵称、头像；\n2. 业务数据：您的出勤记录、比赛数据、能力评分、赛后匿名表现评分、投票记录、装备信息等；赛后匿名评分会保存评分账号用于资格校验和防止重复提交，但不会向队员或应用内管理员展示评分人身份；\n3. 设备信息：为保障服务正常运行所需的设备标识等基础信息。'
   },
   {
     title: '三、信息的使用',
-    body: '我们收集的信息将用于：\n1. 提供球队管理、数据统计、海报生成等基本业务功能；\n2. 改善和优化产品功能与用户体验；\n3. 保障账号与数据安全。我们不会将您的个人信息用于本政策未载明的其他用途。'
+    body: '我们收集的信息将用于：\n1. 提供球队管理、数据统计、海报生成、赛后匿名评分及自动分队等基本业务功能；\n2. 改善和优化产品功能与用户体验；\n3. 保障账号与数据安全。我们不会将您的个人信息用于本政策未载明的其他用途。'
   },
   {
     title: '四、信息的存储与保护',
@@ -46,7 +46,7 @@ const PrivacyPolicy: React.FC = () => {
     <div className="min-h-screen bg-background pb-10">
       <div className="bg-gradient-primary px-6 py-8">
         <h1 className="font-heading text-3xl text-primary-foreground">隐私政策</h1>
-        <p className="text-lg text-primary-foreground/80 mt-2">最后更新：2026年9月</p>
+        <p className="text-lg text-primary-foreground/80 mt-2">最后更新：2026年11月</p>
       </div>
       <div className="px-5 py-5 flex flex-col gap-5">
         {SECTIONS.map((s) => (

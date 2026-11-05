@@ -59,7 +59,7 @@ const AccountDelete: React.FC = () => {
             <div className="flex items-start gap-2">
               <div className="i-mdi-database-remove-outline text-xl text-primary mt-0.5" />
               <span className="flex-1 text-lg text-muted-foreground leading-relaxed">
-                将清除：您的昵称、头像、出勤记录、比赛数据、能力评分、投票记录、装备信息等全部个人数据。
+                将清除：您的昵称、头像、出勤记录、比赛数据、能力评分、赛后匿名表现评分、投票记录、装备信息等全部个人数据。
               </span>
             </div>
             <div className="flex items-start gap-2">

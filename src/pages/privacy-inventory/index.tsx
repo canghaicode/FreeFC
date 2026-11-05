@@ -24,6 +24,7 @@ const COLLECTED: CollectedItem[] = [
   {type: '业务数据', name: '出勤记录', purpose: '统计出勤率与等级', scene: '活动报名/签到', collected: '是', content: '报名与签到状态'},
   {type: '业务数据', name: '比赛数据', purpose: '生成球星卡与能力评分', scene: '填报比赛数据', collected: '是', content: '进球/助攻/防守等数据'},
   {type: '业务数据', name: '能力评分', purpose: '展示六维能力与成长', scene: '球星卡页面', collected: '是', content: '速度/射门/传球等评分'},
+  {type: '业务数据', name: '赛后匿名表现评分', purpose: '生成管理员隐藏分并辅助自动分队', scene: '活动结束后队员互评', collected: '是', content: '活动、评分对象、1-10分及评分账号（前台不公开评分人）'},
   {type: '业务数据', name: '投票记录', purpose: '队内事务表决', scene: '投票中心', collected: '是', content: '投票选项与时间'},
   {type: '业务数据', name: '装备信息', purpose: '装备系统加成计算', scene: '装备页面', collected: '是', content: '已购装备与装备状态'}
 ]
