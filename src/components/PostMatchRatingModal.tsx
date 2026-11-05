@@ -131,20 +131,10 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                     const score = scores[member.id]
                     const value = score ?? 0
                     return (
-                      <div key={member.id} className="px-3 py-2.5 flex flex-col gap-2 bg-background border-b border-border/40 last:border-b-0">
-                        <div className="flex items-center gap-2">
-                          <div className="shrink-0"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
-                          <span className="flex-1 min-w-0 text-lg text-foreground truncate">{member.nickname || '队员'}</span>
-                          <button
-                            type="button"
-                            className={`w-10 h-8 flex items-center justify-end font-heading text-xl shrink-0 ${score ? 'text-primary' : 'text-muted-foreground/40'}`}
-                            aria-label={score ? `清除${member.nickname || '队员'}的${score}分` : `${member.nickname || '队员'}尚未评分`}
-                            onClick={() => clearScore(member.id)}
-                          >
-                            {score ?? '--'}
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
+                      <div key={member.id} className="h-16 px-3 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
+                        <div className="shrink-0"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
+                        <span className="flex-1 min-w-0 text-base text-foreground truncate">{member.nickname || '队员'}</span>
+                        <div className="flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
                           {[0, 1, 2, 3, 4].map((index) => {
                             const half = index * 2 + 1
                             const full = half + 1
@@ -154,14 +144,22 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                                 ? 'i-mdi-star-half-full'
                                 : 'i-mdi-star-outline'
                             return (
-                              <div key={index} className="relative w-11 h-11 flex items-center justify-center">
-                                <div className={`${icon} text-4xl ${value >= half ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
+                              <div key={index} className="relative w-7 h-10 flex items-center justify-center">
+                                <div className={`${icon} text-3xl ${value >= half ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
                                 <div className="absolute left-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, half)} />
                                 <div className="absolute right-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, full)} />
                               </div>
                             )
                           })}
                         </div>
+                        <button
+                          type="button"
+                          className={`w-6 h-10 flex items-center justify-end font-heading text-lg shrink-0 ${score ? 'text-primary' : 'text-muted-foreground/40'}`}
+                          aria-label={score ? `清除${member.nickname || '队员'}的${score}分` : `${member.nickname || '队员'}尚未评分`}
+                          onClick={() => clearScore(member.id)}
+                        >
+                          {score ?? '--'}
+                        </button>
                       </div>
                     )
                   })}
