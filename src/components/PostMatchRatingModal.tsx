@@ -143,12 +143,10 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                     return (
                       <div key={member.id} className="h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
                         <div className="h-full shrink-0 flex items-center justify-center mr-1.5"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
-                        <div className="flex-1 min-w-0 flex items-center gap-0.5 whitespace-nowrap">
-                          <span className="flex-1 min-w-0 text-sm text-foreground truncate">{member.nickname || '队员'}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            {member.jersey_number ?? '--'}·{POSITION_LABEL[member.position || ''] || '未'}
-                          </span>
-                        </div>
+                        <span className="flex-1 min-w-0 text-sm text-foreground truncate whitespace-nowrap">{member.nickname || '队员'}</span>
+                        <span className="w-6 shrink-0 text-center text-xs text-muted-foreground whitespace-nowrap">
+                          {member.jersey_number ?? '--'}·{POSITION_LABEL[member.position || ''] || '未'}
+                        </span>
                         <div className="flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
                           {[0, 1, 2, 3, 4].map((index) => {
                             const half = index * 2 + 1
