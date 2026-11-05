@@ -3,11 +3,13 @@
 import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useBackgroundRefresh, useCachedState} from '@/hooks/useBackgroundRefresh'
+import {PostMatchRatingModal} from '@/components/PostMatchRatingModal'
 import {LogoBg} from '@/components/LogoBg'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {formatActivityTime, MATCH_FORMATS} from '@/constants'
 import {useAuth} from '@/contexts/AuthContext'
-import {getActivities, getActiveSeasonActivities, getKickRequests, getMyRegisteredActivityIds, hasOpenPolls} from '@/db/api'
+import {getActivities, getActiveSeasonActivities, getKickRequests, getMyRegisteredActivityIds, getPostMatchRatingForm, hasOpenPolls} from '@/db/api'
+import type {PostMatchRatingForm} from '@/db/api'
 import type {ActivityWithCount, KickRequest, Season} from '@/db/types'
 
 // 蹲坑专区暂时下线；保留页面与实现，重新开放时只需切换此开关。
@@ -15,6 +17,36 @@ const SHOW_DUNKU_ENTRY = false
 // 投票中心：对登录用户开放；未登录与 admin 账号不显示入口。
 const SHOW_VOTE_CENTER_ENTRY = true
 
+const POST_MATCH_RATING_WINDOW_MS = 72 * 60 * 60 * 1000
+
+interface PendingPostMatchRating {
+  activityId: string
+  form: PostMatchRatingForm
+}
+
+/** 首页只查询仍在72小时评分窗口内的已结束活动，优先弹出最近一场。 */
+async function findPendingPostMatchRating(
+  activities: ActivityWithCount[],
+  userId: string | undefined
+): Promise<PendingPostMatchRating | null> {
+  if (!userId) return null
+  const now = Date.now()
+  const candidates = activities
+    .filter((activity) => {
+      if (activity.cancelled) return false
+      const endedAt = new Date(activity.end_time || activity.activity_time).getTime()
+      return endedAt <= now && now <= endedAt + POST_MATCH_RATING_WINDOW_MS
+    })
+    .sort((a, b) => (
+      new Date(b.end_time || b.activity_time).getTime() - new Date(a.end_time || a.activity_time).getTime()
+    ))
+
+  for (const activity of candidates) {
+    const form = await getPostMatchRatingForm(activity.id)
+    if (form?.should_prompt) return {activityId: activity.id, form}
+  }
+  return null
+}
 
 /** 参与队员人数（普通队员+队长，教练不占名额；含携带人数） */
 function playerCount(a: ActivityWithCount) {
@@ -51,6 +83,9 @@ function Home() {
   const [myJoined, setMyJoined] = useCachedState<string[]>('home-joined', [])
   const [kicks, setKicks] = useState<KickRequest[]>([])
   const [openPolls, setOpenPolls] = useState(false)
+  const [pendingPostMatchRating, setPendingPostMatchRating] = useState<PendingPostMatchRating | null>(null)
+  const [showPostMatchRating, setShowPostMatchRating] = useState(false)
+  const ratingPromptDismissedRef = useRef<string | null>(null)
   const {loading, startRefresh, finishRefresh} = useBackgroundRefresh('home')
   const loadedUserId = useRef<string | null | undefined>(undefined)
   const userIdRef = useRef(user?.id)
@@ -75,6 +110,11 @@ function Home() {
       setKicks(kickList)
       setMyJoined(home.joinedIds)
       setOpenPolls(pollsOpen)
+      const pendingRating = await findPendingPostMatchRating(home.activities, userIdRef.current)
+      setPendingPostMatchRating(pendingRating)
+      setShowPostMatchRating(
+        !!pendingRating && ratingPromptDismissedRef.current !== pendingRating.activityId
+      )
 
     } catch (err) {
       console.error('Failed to load home data:', err)
@@ -92,8 +132,19 @@ function Home() {
     const userId = user?.id ?? null
     if (loadedUserId.current === undefined || loadedUserId.current === userId) return
     loadedUserId.current = userId
+    ratingPromptDismissedRef.current = null
     loadData()
   }, [user?.id, loadData])
+
+  const closePostMatchRating = () => {
+    ratingPromptDismissedRef.current = pendingPostMatchRating?.activityId || null
+    setShowPostMatchRating(false)
+  }
+
+  const markPostMatchRatingSubmitted = () => {
+    setShowPostMatchRating(false)
+    setPendingPostMatchRating(null)
+  }
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -265,6 +316,13 @@ function Home() {
           })}
       </div>
     </div>
+      <PostMatchRatingModal
+        visible={showPostMatchRating}
+        activityId={pendingPostMatchRating?.activityId || ''}
+        form={pendingPostMatchRating?.form || null}
+        onClose={closePostMatchRating}
+        onSubmitted={markPostMatchRatingSubmitted}
+      />
     </div>
   )
 }

@@ -75,7 +75,7 @@ export interface Activity {
   settled: boolean
   /** 是否已取消（取消的活动永不结算、不计出场） */
   cancelled: boolean
-  /** 是否开放赛后匿名表现评分；上线前已结束活动为 false */
+  /** 是否开放赛后匿名表现评分 */
   post_match_rating_enabled: boolean
   created_by: string | null
   created_at: string
