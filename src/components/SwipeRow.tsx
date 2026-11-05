@@ -1,6 +1,5 @@
 // @title 滑动行:左滑内容,右侧露出操作区(如移除按钮)
 import type {ITouchEvent} from '@tarojs/components'
-import Taro from '@tarojs/taro'
 import type {ReactNode} from 'react'
 import {memo, useRef, useState} from 'react'
 
@@ -26,8 +25,6 @@ interface SwipeRowProps {
   children: ReactNode
 }
 
-/** 松手吸附:先快后慢 */
-const SNAP = 'transform 0.42s cubic-bezier(0.16, 1, 0.3, 1)'
 
 interface PaintStyle {
   transform: string
@@ -48,7 +45,7 @@ function paintOf(node: unknown): PaintStyle | null {
 
 /**
  * 手势:水平拖动跟手位移,垂直滚动不拦截(touch-action: pan-y);
- * 松手按是否过半吸附展开/收起,transition 提供先快后慢的回弹。
+ * 松手按是否过半直接展开/收起,不做吸附动画。
  */
 export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth = 80, actions, className = '', contentClassName = 'bg-card', disabled = false, onTouchActive, onSwipeStart, children}: SwipeRowProps) {
   const sheetRef = useRef<unknown>(null)
@@ -60,10 +57,10 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
 
   const clamp = (x: number) => Math.round(Math.max(-actionWidth, Math.min(0, x)))
 
-  const paint = (x: number, transition: string) => {
+  const paint = (x: number) => {
     const style = paintOf(sheetRef.current)
     if (!style) return false
-    style.transition = transition
+    style.transition = 'none'
     style.transform = `translateX(${x}px)`
     return true
   }
@@ -93,7 +90,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         draggingRef.current = true
         const x = clamp(g.baseX + dx)
         dragXRef.current = x
-        if (!paint(x, 'none')) setEpoch((n) => n + 1)
+        if (!paint(x)) setEpoch((n) => n + 1)
         onTouchActive?.()
         onSwipeStart?.()
       } else if (ay > ax * 2) {
@@ -106,7 +103,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
     const x = clamp(g.baseX + dx)
     if (x === dragXRef.current) return
     dragXRef.current = x
-    if (!paint(x, 'none')) setEpoch((n) => n + 1)
+    if (!paint(x)) setEpoch((n) => n + 1)
   }
 
   const onTouchEnd = () => {
@@ -117,18 +114,13 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
       draggingRef.current = false
       return
     }
-    const from = dragXRef.current
-    const shouldOpen = from <= -actionWidth / 2
+    const shouldOpen = dragXRef.current <= -actionWidth / 2
     const finalX = shouldOpen ? -actionWidth : 0
-    // 先挂上渐缓,下一帧再改目标,否则微信会把过渡和位移合成一次,动画被吃掉
-    paint(from, SNAP)
-    Taro.nextTick(() => {
-      dragXRef.current = finalX
-      draggingRef.current = false
-      const painted = paint(finalX, SNAP)
-      onOpenChange(shouldOpen)
-      if (!painted) setEpoch((n) => n + 1)
-    })
+    dragXRef.current = finalX
+    draggingRef.current = false
+    const painted = paint(finalX)
+    onOpenChange(shouldOpen)
+    if (!painted) setEpoch((n) => n + 1)
   }
 
   const follow = draggingRef.current
@@ -149,7 +141,7 @@ export const SwipeRow = memo(function SwipeRow({open, onOpenChange, actionWidth 
         className="relative"
         style={{
           transform: `translateX(${disabled ? 0 : translateX}px)`,
-          transition: follow ? 'none' : SNAP,
+          transition: 'none',
           touchAction: 'pan-y',
           // 固定层级:避免浮起/放下时 zIndex 切换触发微信重建合成层,导致内部 Image 闪暗
           zIndex: 20
