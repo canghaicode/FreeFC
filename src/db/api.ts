@@ -372,6 +372,23 @@ export async function getRegistrationsWithProfiles(activityId: string): Promise<
   return data ?? []
 }
 
+/** 全队成员历史总出场数；仅统计已结算且未取消的活动。 */
+export async function getMemberAppearanceCounts(): Promise<Record<string, number> | null> {
+  const {data, error} = await supabase
+    .from('member_growth')
+    .select('id, appearances')
+    .limit(500)
+  if (error) {
+    console.error('getMemberAppearanceCounts failed:', error.message)
+    return null
+  }
+  const counts: Record<string, number> = {}
+  for (const row of data ?? []) {
+    counts[row.id] = Number(row.appearances)
+  }
+  return counts
+}
+
 /** 获取活动全部嘉宾（含携带人昵称，用于报名列表与分队） */
 export async function getActivityGuests(activityId: string): Promise<RegistrationGuest[]> {
   const {data, error} = await supabase
