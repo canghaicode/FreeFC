@@ -86,14 +86,6 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
 
   const submit = async () => {
     if (submitting || scoredCount === 0) return
-    if (scoredCount < total) {
-      const confirm = await Taro.showModal({
-        title: '确认提交',
-        content: `已评价 ${scoredCount} 人，另外 ${total - scoredCount} 人保持未评分。未评分不会记为0分，提交后本场不能修改。`,
-        confirmText: '确认提交'
-      })
-      if (!confirm.confirm) return
-    }
 
     setSubmitting(true)
     try {
