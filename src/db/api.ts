@@ -1513,6 +1513,7 @@ export interface PostMatchRatingParticipant {
   avatar_url: string | null
   jersey_number: number | null
   position: string | null
+  is_self: boolean
   team: string | null
 }
 

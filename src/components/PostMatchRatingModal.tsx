@@ -62,7 +62,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
   if (!present || !viewForm) return null
 
   const scoredCount = Object.keys(scores).length
-  const total = viewForm.participants.length
+  const total = viewForm.participants.filter((member) => !member.is_self).length
 
   const chooseScore = (memberId: string, score: number) => {
     setScores((current) => {
@@ -121,7 +121,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
               <div className="i-mdi-star-half-full text-3xl text-primary shrink-0" />
               <div className="min-w-0">
                 <h3 className="font-heading text-2xl text-foreground">赛后评分</h3>
-                <p className="text-base text-muted-foreground">按本场实际表现评分，可留空不评</p>
+                <p className="text-base text-muted-foreground">按本场实际表现评分，可留空不评，将影响分队均衡</p>
               </div>
             </div>
             <button type="button" className="i-mdi-close text-2xl text-muted-foreground shrink-0" onClick={onClose} />
@@ -140,6 +140,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                   {group.members.map((member) => {
                     const score = scores[member.id]
                     const value = score ?? 0
+                    const isSelf = member.is_self
                     return (
                       <div key={member.id} className="relative h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
                         <div className="h-full shrink-0 flex items-center justify-center mr-1.5"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
@@ -147,33 +148,39 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                         <span className="absolute left-1/2 -translate-x-1/2 w-6 text-center text-xs text-muted-foreground whitespace-nowrap">
                           {member.jersey_number ?? '--'}·{POSITION_LABEL[member.position || ''] || '未'}
                         </span>
-                        <div className="ml-auto flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
-                          {[0, 1, 2, 3, 4].map((index) => {
-                            const half = index * 2 + 1
-                            const full = half + 1
-                            const fillWidth = value >= full ? 'w-full' : value === half ? 'w-1/2' : 'w-0'
-                            return (
-                              <div key={index} className="relative w-7 h-10 flex items-center justify-center">
-                                <div className="i-lucide-star text-[1.75rem] text-muted-foreground/35" />
-                                <div className={`absolute left-0 top-0 bottom-0 overflow-hidden ${fillWidth}`}>
-                                  <div className="absolute left-0 top-0 w-7 h-10 flex items-center justify-center">
-                                    <div className="i-lucide-star text-[1.75rem] text-amber-500" />
+                        {isSelf ? (
+                          <span className="ml-auto w-40 text-center text-sm text-muted-foreground">本人</span>
+                        ) : (
+                          <>
+                            <div className="ml-auto flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
+                              {[0, 1, 2, 3, 4].map((index) => {
+                                const half = index * 2 + 1
+                                const full = half + 1
+                                const fillWidth = value >= full ? 'w-full' : value === half ? 'w-1/2' : 'w-0'
+                                return (
+                                  <div key={index} className="relative w-7 h-10 flex items-center justify-center">
+                                    <div className="i-lucide-star text-[1.75rem] text-muted-foreground/35" />
+                                    <div className={`absolute left-0 top-0 bottom-0 overflow-hidden ${fillWidth}`}>
+                                      <div className="absolute left-0 top-0 w-7 h-10 flex items-center justify-center">
+                                        <div className="i-lucide-star text-[1.75rem] text-amber-500" />
+                                      </div>
+                                    </div>
+                                    <div className="absolute left-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, half)} />
+                                    <div className="absolute right-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, full)} />
                                   </div>
-                                </div>
-                                <div className="absolute left-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, half)} />
-                                <div className="absolute right-0 top-0 bottom-0 w-1/2" onClick={() => chooseScore(member.id, full)} />
-                              </div>
-                            )
-                          })}
-                        </div>
-                        <button
-                          type="button"
-                          className={`w-5 h-10 flex items-center justify-end font-heading text-base shrink-0 ${score ? 'text-primary' : 'text-muted-foreground/40'}`}
-                          aria-label={score ? `清除${member.nickname || '队员'}的${score}分` : `${member.nickname || '队员'}尚未评分`}
-                          onClick={() => clearScore(member.id)}
-                        >
-                          {score ?? '--'}
-                        </button>
+                                )
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              className={`w-5 h-10 flex items-center justify-end font-heading text-base shrink-0 ${score ? 'text-primary' : 'text-muted-foreground/40'}`}
+                              aria-label={score ? `清除${member.nickname || '队员'}的${score}分` : `${member.nickname || '队员'}尚未评分`}
+                              onClick={() => clearScore(member.id)}
+                            >
+                              {score ?? '--'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )
                   })}
