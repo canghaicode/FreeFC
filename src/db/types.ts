@@ -120,17 +120,8 @@ export interface Registration {
         jersey_number: number | null
         preferred_position: string | null
         secondary_position: string | null
-        preferred_foot: string
-        foot_skill: number
-        weak_foot_skill: number
-        traits: string[]
         title: string | null
-        ab_shooting: number | null
-        ab_passing: number | null
-        ab_dribbling: number | null
-        ab_defending: number | null
-        ab_pace: number | null
-        ab_stamina: number | null
+        appearances: number
       }
     | null
 }

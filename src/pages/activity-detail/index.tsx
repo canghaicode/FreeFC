@@ -16,7 +16,7 @@ import {canWithdrawByRule, defaultMatchFees, formatActivityTime, HONOR_BADGES, M
 import {useAuth} from '@/contexts/AuthContext'
 import {
   addActivityComment, autoSplitTeams, cancelActivity, cancelRegistration, castMatchVote, deleteActivity, getActivity,
-  getActivityComments, getDefenderVoteInfo, getHiddenRatingMembers, getMatchSummary, getMatchVotes, getMemberAppearanceCounts, getMyLikedCommentIds, getMyMatchVotes,
+  getActivityComments, getDefenderVoteInfo, getHiddenRatingMembers, getMatchSummary, getMatchVotes, getMyLikedCommentIds, getMyMatchVotes,
   getPaymentQr, getPostMatchRatingForm, getRegistrationsWithProfiles, getSeasonStats, joinWithSeat, removeRegistration,
   saveMatchSummary, setGuestPosition, setGuestTeam, setPaymentQr, setRegistrationPosition, setRegistrationSeat,
   setRegistrationTeam, settleActivityActivity, toggleCommentLike,
@@ -109,7 +109,6 @@ function ActivityDetail() {
   const [assistRank, setAssistRank] = useState<Map<string, number>>(new Map())
   const [defenseRank, setDefenseRank] = useState<Map<string, number>>(new Map())
   const [hiddenRatings, setHiddenRatings] = useState<Record<string, number>>({})
-  const [appearanceCounts, setAppearanceCounts] = useState<Record<string, number> | null>(null)
   const [postMatchRatingForm, setPostMatchRatingForm] = useState<PostMatchRatingForm | null>(null)
   const [showPostMatchRating, setShowPostMatchRating] = useState(false)
   const ratingPromptDismissedRef = useRef(false)
@@ -118,7 +117,7 @@ function ActivityDetail() {
     if (!id) return
     setLoading(true)
     const act = await getActivity(id)
-    const [regs, cmts, sm, mv, myv, liked, qr, stats, defender, ratingForm, appearances, hiddenRows] = await Promise.all([
+    const [regs, cmts, sm, mv, myv, liked, qr, stats, defender, ratingForm, hiddenRows] = await Promise.all([
       getRegistrationsWithProfiles(id),
       getActivityComments(id),
       getMatchSummary(id),
@@ -129,7 +128,6 @@ function ActivityDetail() {
       act?.season_id ? getSeasonStats(act.season_id) : Promise.resolve([]),
       act?.season_id ? getDefenderVoteInfo(act.season_id) : Promise.resolve(null),
       getPostMatchRatingForm(id),
-      getMemberAppearanceCounts(),
       profile?.role === 'admin' ? getHiddenRatingMembers() : Promise.resolve([])
     ])
     const hiddenMap: Record<string, number> = {}
@@ -137,7 +135,6 @@ function ActivityDetail() {
       if (row.hidden_rating != null) hiddenMap[row.id] = row.hidden_rating
     })
     setHiddenRatings(hiddenMap)
-    setAppearanceCounts(appearances)
     setPostMatchRatingForm(ratingForm)
     if (ratingForm?.should_prompt && !ratingPromptDismissedRef.current) setShowPostMatchRating(true)
     if (qr) {
@@ -954,7 +951,7 @@ function ActivityDetail() {
                 })
                 .map((r, index) => {
                 const p = r.profiles
-                const appearances = appearanceCounts?.[r.user_id]
+                const appearances = p?.appearances
                 const honors = honorKeysOf(goalRank, assistRank, defenseRank, r.user_id)
                 const regGuests = (r.guests || []).filter(
                   (g) => regPosFilter === '全部' || !g.position || g.position === regPosFilter

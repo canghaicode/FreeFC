@@ -357,37 +357,14 @@ export async function cancelRegistration(activityId: string, userId: string): Pr
 }
 
 export async function getRegistrationsWithProfiles(activityId: string): Promise<Registration[]> {
-  const {data, error} = await supabase
-    .from('registrations')
-    .select(
-      '*, profiles(id, nickname, avatar_url, jersey_number, preferred_position, secondary_position, ab_shooting, ab_passing, ab_dribbling, ab_defending, ab_pace, ab_stamina), guests:registration_guests(id, registration_id, activity_id, seq, name, position, team, created_at)'
-    )
-    .eq('activity_id', activityId)
-    .order('created_at', {ascending: true})
-    .limit(60)
+  const {data, error} = await supabase.rpc('get_activity_registrations_with_profiles', {p_activity_id: activityId})
   if (error) {
     console.error('getRegistrationsWithProfiles failed:', error.message)
     return []
   }
-  return data ?? []
+  return Array.isArray(data) ? data : []
 }
 
-/** 全队成员历史总出场数；仅统计已结算且未取消的活动。 */
-export async function getMemberAppearanceCounts(): Promise<Record<string, number> | null> {
-  const {data, error} = await supabase
-    .from('member_growth')
-    .select('id, appearances')
-    .limit(500)
-  if (error) {
-    console.error('getMemberAppearanceCounts failed:', error.message)
-    return null
-  }
-  const counts: Record<string, number> = {}
-  for (const row of data ?? []) {
-    counts[row.id] = Number(row.appearances)
-  }
-  return counts
-}
 
 /** 获取活动全部嘉宾（含携带人昵称，用于报名列表与分队） */
 export async function getActivityGuests(activityId: string): Promise<RegistrationGuest[]> {
