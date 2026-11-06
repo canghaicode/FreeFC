@@ -123,7 +123,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
             </div>
             <button type="button" className="i-mdi-close text-2xl text-muted-foreground shrink-0" onClick={onClose} />
           </div>
-          <p className="mt-1 text-base text-muted-foreground">按本场实际表现评分，可留空不评，将影响分队均衡</p>
+          <p className="mt-1 text-base text-muted-foreground">按本场实际表现评分，将影响分队均衡</p>
         </div>
 
         <ScrollView scrollY className="flex-1 min-h-0" style={{height: '58vh'}}>
