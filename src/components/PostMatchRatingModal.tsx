@@ -119,13 +119,11 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <div className="i-mdi-star-half-full text-3xl text-primary shrink-0" />
-              <div className="min-w-0">
-                <h3 className="font-heading text-2xl text-foreground">赛后评分</h3>
-                <p className="text-base text-muted-foreground">按本场实际表现评分，可留空不评，将影响分队均衡</p>
-              </div>
+              <h3 className="font-heading text-2xl text-foreground">赛后评分</h3>
             </div>
             <button type="button" className="i-mdi-close text-2xl text-muted-foreground shrink-0" onClick={onClose} />
           </div>
+          <p className="mt-1 text-base text-muted-foreground">按本场实际表现评分，可留空不评，将影响分队均衡</p>
         </div>
 
         <ScrollView scrollY className="flex-1 min-h-0" style={{height: '58vh'}}>
@@ -149,7 +147,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                           {member.jersey_number ?? '--'}·{POSITION_LABEL[member.position || ''] || '未'}
                         </span>
                         {isSelf ? (
-                          <span className="ml-auto w-40 text-center text-sm text-muted-foreground">本人</span>
+                          <span className="ml-auto w-40 text-center text-sm text-muted-foreground">(我)</span>
                         ) : (
                           <>
                             <div className="ml-auto flex items-center shrink-0" aria-label={`给${member.nickname || '队员'}评分`}>
