@@ -1032,7 +1032,7 @@ function ActivityDetail() {
                     </div>
                     {appearances !== undefined && (
                       appearances === 0 ? (
-                        <span aria-label="总出场0次" className="w-9 h-9 rounded-lg bg-primary/15 text-primary font-heading text-lg flex items-center justify-center shrink-0">新</span>
+                        <span aria-label="总出场0次" className="w-9 h-9 rounded-lg bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">新</span>
                       ) : (
                         <span aria-label={`总出场${appearances}次`} className="px-2.5 py-1 rounded-lg bg-accent/15 text-accent-foreground text-lg shrink-0">
                           {appearances}
