@@ -416,12 +416,12 @@ export const CARD_TIERS: Record<CardTier['key'], CardTier> = {
   }
 }
 
-/** 根据总评 OVR 判定卡片品质：青铜 <65 / 白银 65-74 / 黄金 75-84 / 传奇 ≥85 */
+/** 根据总评 OVR 判定卡片品质：青铜 <55 / 白银 55-61 / 黄金 62-69 / 传奇 ≥70 */
 export function cardTier(ovr: number | null | undefined): CardTier {
   if (ovr === null || ovr === undefined) return CARD_TIERS.unset
-  if (ovr >= 85) return CARD_TIERS.legend
-  if (ovr >= 75) return CARD_TIERS.gold
-  if (ovr >= 65) return CARD_TIERS.silver
+  if (ovr >= 70) return CARD_TIERS.legend
+  if (ovr >= 62) return CARD_TIERS.gold
+  if (ovr >= 55) return CARD_TIERS.silver
   return CARD_TIERS.bronze
 }
 
@@ -434,6 +434,7 @@ export interface StarTemplate {
   /** 适合位置 */
   position: string
   desc: string
+  /** 每项 40..70 且六维合计 300，可直接作为自定义基础值 */
   abilities: Record<AbilityKey, number>
 }
 
@@ -441,42 +442,42 @@ export const STAR_TEMPLATES: StarTemplate[] = [
   {
     key: 'winger', name: '速度型边锋', icon: 'i-mdi-run-fast', position: '边锋',
     desc: '风驰电掣，靠速度与盘带撕开边路',
-    abilities: {ab_pace: 88, ab_shooting: 74, ab_passing: 76, ab_dribbling: 88, ab_defending: 42, ab_stamina: 78}
+    abilities: {ab_pace: 70, ab_shooting: 45, ab_passing: 45, ab_dribbling: 60, ab_defending: 40, ab_stamina: 40}
   },
   {
     key: 'striker', name: '禁区终结者', icon: 'i-mdi-target', position: '前锋',
     desc: '嗅觉敏锐，一击致命的射手',
-    abilities: {ab_pace: 84, ab_shooting: 90, ab_passing: 68, ab_dribbling: 82, ab_defending: 40, ab_stamina: 75}
+    abilities: {ab_pace: 55, ab_shooting: 70, ab_passing: 40, ab_dribbling: 50, ab_defending: 40, ab_stamina: 45}
   },
   {
     key: 'playmaker', name: '组织核心', icon: 'i-mdi-compass-outline', position: '前腰',
     desc: '用传球掌控节奏的场上大脑',
-    abilities: {ab_pace: 72, ab_shooting: 78, ab_passing: 90, ab_dribbling: 86, ab_defending: 48, ab_stamina: 72}
+    abilities: {ab_pace: 45, ab_shooting: 45, ab_passing: 70, ab_dribbling: 60, ab_defending: 40, ab_stamina: 40}
   },
   {
     key: 'b2b', name: '全能中场', icon: 'i-mdi-swap-horizontal', position: '中前卫',
     desc: '攻防全覆盖的Box-toBox发动机',
-    abilities: {ab_pace: 78, ab_shooting: 72, ab_passing: 80, ab_dribbling: 76, ab_defending: 76, ab_stamina: 88}
+    abilities: {ab_pace: 50, ab_shooting: 45, ab_passing: 55, ab_dribbling: 45, ab_defending: 45, ab_stamina: 60}
   },
   {
     key: 'destroyer', name: '扫荡型后腰', icon: 'i-mdi-shield-account-outline', position: '后腰',
     desc: '中场绞肉机，拦截扫荡一绝',
-    abilities: {ab_pace: 72, ab_shooting: 55, ab_passing: 76, ab_dribbling: 64, ab_defending: 88, ab_stamina: 86}
+    abilities: {ab_pace: 45, ab_shooting: 40, ab_passing: 50, ab_dribbling: 40, ab_defending: 70, ab_stamina: 55}
   },
   {
     key: 'rock', name: '铁血后卫', icon: 'i-mdi-wall', position: '中后卫',
     desc: '一夫当关，禁区内寸土不让',
-    abilities: {ab_pace: 70, ab_shooting: 45, ab_passing: 65, ab_dribbling: 55, ab_defending: 90, ab_stamina: 82}
+    abilities: {ab_pace: 45, ab_shooting: 40, ab_passing: 45, ab_dribbling: 40, ab_defending: 70, ab_stamina: 60}
   },
   {
     key: 'keeper', name: '门神', icon: 'i-mdi-hand-back-right-outline', position: '门将',
     desc: '反应神速，球队最后一道防线',
-    abilities: {ab_pace: 58, ab_shooting: 30, ab_passing: 62, ab_dribbling: 42, ab_defending: 92, ab_stamina: 80}
+    abilities: {ab_pace: 40, ab_shooting: 40, ab_passing: 55, ab_dribbling: 40, ab_defending: 70, ab_stamina: 55}
   },
   {
     key: 'legend10', name: '传奇十号', icon: 'i-mdi-crown', position: '前腰/前锋',
     desc: '传射俱佳的绿茵艺术家',
-    abilities: {ab_pace: 82, ab_shooting: 88, ab_passing: 92, ab_dribbling: 92, ab_defending: 50, ab_stamina: 78}
+    abilities: {ab_pace: 50, ab_shooting: 50, ab_passing: 60, ab_dribbling: 60, ab_defending: 40, ab_stamina: 40}
   }
 ]
 
@@ -754,21 +755,31 @@ export function defaultMatchFees(a: {match_format?: string | null; match_type?: 
   return base
 }
 
-/* ---------------- 经验与加点体系（FIFA 40-99） ---------------- */
+/** 默认微信收款码：与头像同属 Supabase Storage 公共域名，便于小程序长按识别。 */
+const SUPABASE_BASE = String(process.env.TARO_APP_SUPABASE_URL || '')
+export const DEFAULT_PAYMENT_QR_URL = `${SUPABASE_BASE}/storage/v1/object/public/minicode/posters/wechat-pay-qr.png`
+
+/* ---------------- 经验与自定义基础六维成长体系 ---------------- */
 /** 出勤单场所得经验 */
 export const EXP_PER_MATCH = 100
-/** 升级所需经验（每级） */
+/** 升级经验基数：Lv.L → Lv.(L+1) 需要基数 × L */
 export const EXP_PER_LEVEL = 100
 /** 每次升级获得的自由属性点 */
 export const POINTS_PER_LEVEL = 5
-/** 初始能力上限 */
-export const ABILITY_CAP_BASE = 75
-/** 出勤每满 N 场，上限 +1 */
-export const APPEARANCES_PER_CAP = 5
 /** 能力值理论满分（FIFA 体系，100 不是满分） */
 export const ABILITY_MAX = 99
-/** 新队员默认六维 */
-export const DEFAULT_ABILITY = 60
+/** 自定义基础六维必须合计 300，单项为 40..70；未提供值时按均衡 50 回落。 */
+export const BASE_ABILITY_TOTAL = 300
+export const MIN_BASE_ABILITY = 40
+export const MAX_BASE_ABILITY = 70
+export const DEFAULT_ABILITY = 50
+
+const INITIAL_ABILITY_GROWTH_CAP = 15
+const MAX_ABILITY_GROWTH_CAP = 39
+const APPEARANCES_PER_CAP = 5
+const REFERENCE_ABILITY_BASE = 60
+const REFERENCE_CAP_BASE = 75
+const REFERENCE_CAP_MODIFIERS = [10, 8, 3, 0, -5, -10] as const
 
 /** 成长数值运行时配置（由队长后台设置，默认与常量一致） */
 let growthConfig = {
@@ -802,8 +813,12 @@ export function setGrowthConfig(c: Partial<RuntimeGrowthConfig>) {
   const next = {...growthConfig, ...c}
   for (const k of Object.keys(next) as (keyof RuntimeGrowthConfig)[]) {
     const min = GROWTH_MIN_1.includes(k) ? 1 : 0
-    next[k] = Math.max(min, Math.floor(next[k])) as never
+    const value = next[k]
+    next[k] = (Number.isFinite(value)
+      ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(min, Math.floor(value)))
+      : growthConfig[k]) as never
   }
+  next.points_per_level = POINTS_PER_LEVEL
   growthConfig = next
 }
 
@@ -811,19 +826,93 @@ export function getGrowthConfig() {
   return growthConfig
 }
 
-/** 经验等级（按后台配置的每级经验） */
+export interface ExpLevelProgress {
+  level: number
+  /** 当前等级内已获得经验 */
+  earned: number
+  /** 从当前等级升到下一级所需经验 */
+  required: number
+  progressPct: number
+}
+
+function validTotalExp(exp: number): number {
+  if (!Number.isFinite(exp)) return 0
+  return Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(exp)))
+}
+
+/** Lv.L 的累计经验门槛：base × L × (L - 1) / 2。 */
+function expThreshold(level: number, base: number): number {
+  // 先除以 2，确保所有可表示门槛都保持安全整数精度。
+  const left = level % 2 === 0 ? level / 2 : level
+  const right = level % 2 === 0 ? level - 1 : (level - 1) / 2
+  const triangular = left * right
+  if (triangular > Math.floor(Number.MAX_SAFE_INTEGER / base)) return Number.POSITIVE_INFINITY
+  return triangular * base
+}
+
+/** 当前经验的等级、等级内经验与升级成本。闭式解后校正，精确处理累计门槛边界。 */
+export function expLevelProgress(exp: number): ExpLevelProgress {
+  const totalExp = validTotalExp(exp)
+  const configuredBase = growthConfig.exp_per_level
+  const base = Number.isFinite(configuredBase)
+    ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.floor(configuredBase)))
+    : EXP_PER_LEVEL
+  let level = Math.max(1, Math.floor((1 + Math.sqrt(1 + (8 * totalExp) / base)) / 2))
+
+  while (level > 1 && expThreshold(level, base) > totalExp) level -= 1
+  while (expThreshold(level + 1, base) <= totalExp) level += 1
+
+  const earned = totalExp - expThreshold(level, base)
+  const required = base * level
+  return {
+    level,
+    earned,
+    required,
+    progressPct: (earned / required) * 100
+  }
+}
+
+/** 经验等级（Lv.1 起，升级成本随当前等级线性增长）。 */
 export function expLevel(exp: number): number {
-  return Math.floor(Math.max(0, exp) / growthConfig.exp_per_level) + 1
+  return expLevelProgress(exp).level
 }
 
-/** 当前等级升级进度（0-100） */
+/** 当前等级升级进度（0-100）。 */
 export function expProgressPct(exp: number): number {
-  return Math.round(((Math.max(0, exp) % growthConfig.exp_per_level) / growthConfig.exp_per_level) * 100)
+  return expLevelProgress(exp).progressPct
 }
 
-/** 出勤场次 → 当前能力上限（75 起步，每5场+1，封顶99） */
-export function abilityCapOf(appearances: number): number {
-  return Math.min(ABILITY_CAP_BASE + Math.floor(Math.max(0, appearances) / APPEARANCES_PER_CAP), ABILITY_MAX)
+/** 出勤与自定义基础六维 → 分项上限；每项初始可成长 15，之后每 5 场 +1，成长空间最多 39。 */
+export function abilityCapsOf(appearances: number, baseValues: AbilityCarrier): Record<AbilityKey, number> {
+  const validAppearances = Number.isFinite(appearances) ? Math.max(0, Math.floor(appearances)) : 0
+  const growthCap = Math.min(
+    INITIAL_ABILITY_GROWTH_CAP + Math.floor(validAppearances / APPEARANCES_PER_CAP),
+    MAX_ABILITY_GROWTH_CAP
+  )
+  const caps = {} as Record<AbilityKey, number>
+  for (const {key} of ABILITY_DIMENSIONS) {
+    const value = baseValues[key]
+    const base = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : DEFAULT_ABILITY
+    caps[key] = Math.min(ABILITY_MAX, base + growthCap)
+  }
+  return caps
+}
+
+/**
+ * 可分配总预算沿用固定参考曲线，与自定义基础值和场上位置无关。
+ * 参考中心上限从 75 起每 5 场 +1，各固定修正项高于 60 的容量合计取一半。
+ */
+export function abilityBudgetOf(appearances: number): number {
+  const validAppearances = Number.isFinite(appearances) ? Math.max(0, Math.floor(appearances)) : 0
+  const centralCap = Math.min(
+    REFERENCE_CAP_BASE + Math.floor(validAppearances / APPEARANCES_PER_CAP),
+    ABILITY_MAX
+  )
+  const capacity = REFERENCE_CAP_MODIFIERS.reduce((sum, modifier) => {
+    const cap = Math.max(REFERENCE_ABILITY_BASE, Math.min(ABILITY_MAX, centralCap + modifier))
+    return sum + cap - REFERENCE_ABILITY_BASE
+  }, 0)
+  return Math.floor(capacity / 2)
 }
 
 /** 报名门槛：资料缺失项（昵称/球衣号/位置），完整返回 null */
@@ -858,14 +947,62 @@ export function skillBonuses(list: SkillBonusCarrier[] | null | undefined): Part
   return out
 }
 
-/** 基础六维 + 技能加成（单项封顶99） */
+/** 单项正加成直接生效但最多 8；负值作为惩罚保留，不抵扣正加成总预算。 */
+export const MAX_EFFECTIVE_BONUS_PER_DIMENSION = 8
+
+export function effectiveAbilityBonus(rawBonus: number): number {
+  if (!Number.isFinite(rawBonus)) return 0
+  const rounded = Math.round(rawBonus)
+  if (rounded <= 0) return rounded || 0
+  return Math.min(rounded, MAX_EFFECTIVE_BONUS_PER_DIMENSION)
+}
+
+/** 六维正加成的总预算，防止装备/技能/活跃等级叠加后同时顶满。 */
+export const MAX_EFFECTIVE_BONUS_TOTAL = 30
+
+/**
+ * 六维原始加成先逐项限制正加成，再以最大余数法按比例压到总预算内。
+ * 负值保持不变；余数相同时按 ABILITY_DIMENSIONS 的固定顺序分配，保证所有端结果一致。
+ */
+export function effectiveBonuses(
+  rawBonuses: Partial<Record<AbilityKey, number>> | null | undefined
+): Record<AbilityKey, number> {
+  const out = {} as Record<AbilityKey, number>
+  let positiveTotal = 0
+  for (const {key} of ABILITY_DIMENSIONS) {
+    const value = effectiveAbilityBonus(rawBonuses?.[key] ?? 0)
+    out[key] = value
+    positiveTotal += Math.max(0, value)
+  }
+  if (positiveTotal <= MAX_EFFECTIVE_BONUS_TOTAL) return out
+
+  const scale = MAX_EFFECTIVE_BONUS_TOTAL / positiveTotal
+  const remainders: {key: AbilityKey; index: number; remainder: number}[] = []
+  let assigned = 0
+  ABILITY_DIMENSIONS.forEach(({key}, index) => {
+    if (out[key] <= 0) return
+    const scaled = out[key] * scale
+    const whole = Math.floor(scaled)
+    out[key] = whole
+    assigned += whole
+    remainders.push({key, index, remainder: scaled - whole})
+  })
+  remainders.sort((a, b) => b.remainder - a.remainder || a.index - b.index)
+  for (let i = 0; i < MAX_EFFECTIVE_BONUS_TOTAL - assigned; i++) {
+    out[remainders[i].key] += 1
+  }
+  return out
+}
+
+/** 基础六维 + 统一限制后的组合加成（最终单项封顶 99）。 */
 export function abilitiesWithBonus(
   p: AbilityCarrier,
   bonuses: Partial<Record<AbilityKey, number>> | null | undefined
 ): Record<AbilityKey, number> {
+  const effective = effectiveBonuses(bonuses)
   const out = {} as Record<AbilityKey, number>
   for (const d of ABILITY_DIMENSIONS) {
-    out[d.key] = Math.min(ABILITY_MAX, (p[d.key] ?? DEFAULT_ABILITY) + (bonuses?.[d.key] || 0))
+    out[d.key] = Math.min(ABILITY_MAX, (p[d.key] ?? DEFAULT_ABILITY) + effective[d.key])
   }
   return out
 }
@@ -937,24 +1074,24 @@ export function equipmentBonuses(list: EquipmentBonusCarrier[] | null | undefine
   return out
 }
 
-/* ---------------- 等级加成（分等级略微加能力值） ---------------- */
+/* ---------------- 活跃等级加成（活跃度等级与经验等级相互独立） ---------------- */
 
-/** 各等级提供的全六维加成（等级越高加成越多） */
+/** 各活跃度等级提供的全六维加成。 */
 export const LEVEL_ABILITY_BONUS: Record<number, number> = {
   1: 0,
-  2: 1,
-  3: 2,
-  4: 3,
-  5: 5
+  2: 0,
+  3: 1,
+  4: 1,
+  5: 2
 }
 
-/** 根据活跃度等级返回全六维加成值 */
+/** 根据活跃度等级返回全六维加成值。 */
 export function levelAbilityBonus(activity: number): number {
   const def = levelFromActivity(activity)
   return LEVEL_ABILITY_BONUS[def.level] ?? 0
 }
 
-/** 汇总等级加成为六维加成对象（全维度统一加成） */
+/** 汇总活跃等级加成为六维加成对象（全维度统一加成）。 */
 export function levelBonuses(activity: number): Partial<Record<AbilityKey, number>> {
   const b = levelAbilityBonus(activity)
   if (!b) return {}
@@ -965,7 +1102,7 @@ export function levelBonuses(activity: number): Partial<Record<AbilityKey, numbe
   return out
 }
 
-/** 合并多组加成（技能 + 装备 + 等级） */
+/** 合并多组原始加成（装备 + 技能 + 活跃等级）；限制与总预算仅在合并后应用。 */
 export function mergeBonuses(...groups: (Partial<Record<AbilityKey, number>> | null | undefined)[]): Partial<Record<AbilityKey, number>> {
   const out: Partial<Record<AbilityKey, number>> = {}
   for (const g of groups) {
@@ -977,18 +1114,18 @@ export function mergeBonuses(...groups: (Partial<Record<AbilityKey, number>> | n
   return out
 }
 
-/** 队员卡能力口径：基础六维 + 技能 + 装备 + 等级加成（各页统一使用） */
+/** 队员卡能力口径：基础六维 + 装备 + 技能 + 活跃等级的统一加成（各页共用）。 */
 export interface MemberAbilitySource extends AbilityCarrier {
   member_skills?: SkillBonusCarrier[] | null
   member_equipment?: EquipmentBonusCarrier[] | null
   activity?: number | null
 }
 
-/** 统一计算队员最终六维：与球星卡页（能力页）口径一致 */
+/** 统一计算队员最终六维：正加成受单项/总量限制，最终单项封顶 99。 */
 export function memberFinalAbilities(m: MemberAbilitySource): Record<AbilityKey, number> {
   return abilitiesWithBonus(
     m,
-    mergeBonuses(skillBonuses(m.member_skills), equipmentBonuses(m.member_equipment), levelBonuses(m.activity ?? 0))
+    mergeBonuses(equipmentBonuses(m.member_equipment), skillBonuses(m.member_skills), levelBonuses(m.activity ?? 0))
   )
 }
 

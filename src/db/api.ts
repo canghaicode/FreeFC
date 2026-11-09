@@ -1,5 +1,6 @@
 import {supabase} from '@/client/supabase'
 import type {
+  AbilityAllocation,
   Activity,
   ActivityComment,
   ActivityWithCount,
@@ -116,7 +117,7 @@ export async function getActiveSeasonActivities(userId?: string | null): Promise
 
   const activityResult = await supabase
     .from('activities')
-    .select('id,title,activity_time,location,max_players,match_format,match_type,cancelled,season_id,regs:registrations(seat_role,guest_count,user_id)')
+    .select('id,title,activity_time,end_time,location,max_players,match_format,match_type,cancelled,per_person_fee,season_id,regs:registrations(seat_role,guest_count,user_id)')
     .eq('season_id', season.id)
     .order('activity_time', {ascending: false})
     .limit(50)
@@ -244,6 +245,23 @@ export async function updateActivity(
     return false
   }
   return true
+}
+
+/** 保存最近一次导出收款海报时计算的人均费用。 */
+export async function setActivityPerPersonFee(activityId: string, amount: number): Promise<boolean> {
+  if (!Number.isFinite(amount) || amount < 0) return false
+  const perPersonFee = Math.round(amount * 100) / 100
+  const {data, error} = await supabase
+    .from('activities')
+    .update({per_person_fee: perPersonFee})
+    .eq('id', activityId)
+    .select('id')
+    .maybeSingle()
+  if (error) {
+    console.error('setActivityPerPersonFee failed:', error.message)
+    return false
+  }
+  return Boolean(data)
 }
 
 /** 主教练调整报名分队（A/B/移除） */
@@ -649,12 +667,6 @@ export async function updateOwnProfile(
       | 'jersey_number'
       | 'preferred_position'
       | 'secondary_position'
-      | 'ab_shooting'
-      | 'ab_passing'
-      | 'ab_dribbling'
-      | 'ab_defending'
-      | 'ab_pace'
-      | 'ab_stamina'
       | 'preferred_foot'
       | 'foot_skill'
       | 'weak_foot_skill'
@@ -800,7 +812,66 @@ export async function toggleCommentLike(commentId: string, liked: boolean): Prom
   return true
 }
 
-/** 自由属性点加点（FIFA 体系：受上限约束） */
+/** 获取当前用户的权威基础值、成长分配、动态上限与预算 */
+export async function getMyAbilityAllocation(): Promise<{
+  ok: boolean
+  message?: string
+  data?: AbilityAllocation
+}> {
+  const {data, error} = await supabase.rpc('get_my_ability_allocation')
+  if (error || !data) {
+    const message = error?.message || '读取能力分配失败'
+    console.error('getMyAbilityAllocation failed:', message)
+    return {ok: false, message}
+  }
+  return {ok: true, data: data as AbilityAllocation}
+}
+
+/**
+ * 原子保存自定义基础六维。基础值变化时服务端重置成长分配并全额返还旧投入；
+ * 重复保存相同基础值保持现有分配与余额不变。
+ */
+export async function saveAbilityBase(
+  base: AbilityAllocation['base']
+): Promise<{ok: boolean; message: string; data?: AbilityAllocation}> {
+  const {data, error} = await supabase.rpc('save_ability_base', {p_base: base})
+  if (error || !data) {
+    const message = error?.message || '保存基础能力失败'
+    console.error('saveAbilityBase failed:', message)
+    return {ok: false, message}
+  }
+  return {ok: true, message: '基础能力已保存', data: data as AbilityAllocation}
+}
+
+/** 原子保存六维成长分配；服务端负责分项上限、总预算与自由点守恒 */
+export async function saveAbilityAllocation(
+  allocated: AbilityAllocation['allocated']
+): Promise<{ok: boolean; message?: string; data?: AbilityAllocation}> {
+  const {data, error} = await supabase.rpc('save_ability_allocation', {p_allocated: allocated})
+  if (error || !data) {
+    const message = error?.message || '保存能力分配失败'
+    console.error('saveAbilityAllocation failed:', message)
+    return {ok: false, message}
+  }
+  return {ok: true, data: data as AbilityAllocation}
+}
+
+/** 免费重置全部成长投入并退回自由属性点，不修改自定义基础值 */
+export async function resetAbilityAllocation(): Promise<{
+  ok: boolean
+  message?: string
+  data?: AbilityAllocation
+}> {
+  const {data, error} = await supabase.rpc('reset_ability_allocation')
+  if (error || !data) {
+    const message = error?.message || '重置能力分配失败'
+    console.error('resetAbilityAllocation failed:', message)
+    return {ok: false, message}
+  }
+  return {ok: true, data: data as AbilityAllocation}
+}
+
+/** 即时增减单项成长投入（不修改基础值，受分项上限与总预算约束） */
 export async function allocPoints(key: string, delta: number): Promise<{ok: boolean; message?: string; remaining?: number}> {
   const {data, error} = await supabase.rpc('alloc_points', {p_key: key, p_delta: delta})
   if (error) {
@@ -1272,7 +1343,7 @@ export async function captainResetProfile(targetUid: string): Promise<{ok: boole
   return {ok: true, message: '资料已重置'}
 }
 
-/** 队长后台：直接调整队员六维能力值与自由属性点 */
+/** 队长后台：直接调整队员六维投影与自由属性点；服务端按该队员实际基础值校验 */
 export async function captainSetAbilities(
   targetUid: string,
   values: Record<string, number>

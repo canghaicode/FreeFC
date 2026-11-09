@@ -7,14 +7,14 @@ import {useAuth} from '@/contexts/AuthContext'
 import {Avatar} from '@/components/Avatar'
 import {adminAdjustActivity, adminSetLevel, captainResetProfile, captainSetAbilities, defaultGrowthConfig, getGrowthConfig, getSquadRoster, setMemberRole, updateGrowthConfig} from '@/db/api'
 import type {Profile} from '@/db/types'
-import {ABILITY_DIMENSIONS, DEFAULT_ABILITY, LEVELS, setGrowthConfig} from '@/constants'
+import {ABILITY_DIMENSIONS, DEFAULT_ABILITY, LEVELS, MIN_BASE_ABILITY, POINTS_PER_LEVEL, setGrowthConfig} from '@/constants'
 
 const CAPTAIN_UID = '3dca509b-4ab0-4b83-ad48-f7865eb8c319'
 
 /** 成长/奖励配置字段定义（min1=必须为正整数，否则允许 0） */
 const CFG_FIELDS: {key: string; label: string; group: '基础成长' | '荣誉奖励' | '数据奖励'}[] = [
-  {key: 'exp_per_level', label: '每级所需经验', group: '基础成长'},
-  {key: 'points_per_level', label: '每级属性点', group: '基础成长'},
+  {key: 'exp_per_level', label: '升级经验基数（×当前等级）', group: '基础成长'},
+  {key: 'points_per_level', label: '每级属性点（固定）', group: '基础成长'},
   {key: 'exp_per_match', label: '每场出勤经验', group: '基础成长'},
   {key: 'activity_per_match', label: '每场出勤活跃度', group: '基础成长'},
     {key: 'squat_target', label: '蹲坑达标人数', group: '基础成长'},
@@ -54,7 +54,7 @@ function CaptainAdmin() {
     startRefresh()
     const [squad, config] = await Promise.all([getSquadRoster(), getGrowthConfig()])
     setMembers(squad)
-    setCfg(Object.fromEntries(Object.entries(config).map(([k, v]) => [k, String(v)])))
+    setCfg({...Object.fromEntries(Object.entries(config).map(([k, v]) => [k, String(v)])), points_per_level: String(POINTS_PER_LEVEL)})
     finishRefresh()
   }, [])
 
@@ -158,8 +158,8 @@ function CaptainAdmin() {
         Taro.showToast({title: '请填写完整数值', icon: 'none'})
         return
       }
-      if (key === 'free_points' ? n < 0 : n < 40 || n > 99) {
-        Taro.showToast({title: key === 'free_points' ? '自由点不能为负数' : '能力值须在40-99之间', icon: 'none'})
+      if (key === 'free_points' ? n < 0 : n < MIN_BASE_ABILITY || n > 99) {
+        Taro.showToast({title: key === 'free_points' ? '自由点不能为负数' : `能力值须在${MIN_BASE_ABILITY}-99之间`, icon: 'none'})
         return
       }
       values[key] = n
@@ -181,7 +181,7 @@ function CaptainAdmin() {
     if (savingCfg) return
     const payload: Record<string, number> = {}
     for (const f of CFG_FIELDS) {
-      const n = parseInt(cfg[f.key] || '', 10)
+      const n = f.key === 'points_per_level' ? POINTS_PER_LEVEL : parseInt(cfg[f.key] || '', 10)
       if (!Number.isInteger(n) || n < 0) {
         Taro.showToast({title: `${f.label}须为非负整数`, icon: 'none'})
         return
@@ -259,6 +259,7 @@ function CaptainAdmin() {
                       type="number"
                       className="w-full text-xl text-foreground bg-transparent outline-none text-center"
                       value={cfg[f.key]}
+                      disabled={f.key === 'points_per_level'}
                       onInput={(e) => {
                         const ev = e as any
                         setCfg((p) => ({...p, [f.key]: ev.detail?.value ?? ev.target?.value ?? ''}))
@@ -417,22 +418,22 @@ function CaptainAdmin() {
                       className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-border bg-background"
                       onClick={() =>
                         setAbilityForm((prev) => {
-                          const cur = parseInt(prev[dim.key] || '60', 10)
-                          return {...prev, [dim.key]: String(Math.max(40, cur - 1))}
+                          const cur = parseInt(prev[dim.key] || String(DEFAULT_ABILITY), 10)
+                          return {...prev, [dim.key]: String(Math.max(MIN_BASE_ABILITY, cur - 1))}
                         })
                       }
                     >
                       <div className="i-mdi-minus text-2xl text-muted-foreground" />
                     </button>
                     <span className="w-12 text-center text-2xl font-heading text-primary">
-                      {abilityForm[dim.key] || '60'}
+                      {abilityForm[dim.key] || String(DEFAULT_ABILITY)}
                     </span>
                     <button
                       type="button"
                       className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-primary/40 bg-primary/10"
                       onClick={() =>
                         setAbilityForm((prev) => {
-                          const cur = parseInt(prev[dim.key] || '60', 10)
+                          const cur = parseInt(prev[dim.key] || String(DEFAULT_ABILITY), 10)
                           return {...prev, [dim.key]: String(Math.min(99, cur + 1))}
                         })
                       }
@@ -474,7 +475,7 @@ function CaptainAdmin() {
                   </button>
                 </div>
               </div>
-              <p className="text-base text-muted-foreground">能力值范围 40-99，自由属性点不能为负数</p>
+              <p className="text-base text-muted-foreground">能力值范围 {MIN_BASE_ABILITY}-99，低于队员基础值、超出动态上限或预算时服务端会拒绝；自由属性点不能为负数</p>
             </div>
 
             <div className="flex flex-row gap-3">

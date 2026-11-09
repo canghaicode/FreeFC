@@ -1,5 +1,5 @@
 // @title 赛后匿名表现评分弹窗
-import {ScrollView, View} from '@tarojs/components'
+import {Image, ScrollView, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {Avatar} from '@/components/Avatar'
@@ -10,6 +10,8 @@ interface PostMatchRatingModalProps {
   visible: boolean
   activityId: string
   form: PostMatchRatingForm | null
+  perPersonFee: number | null
+  qrUrl: string
   onClose: () => void
   onSubmitted: () => void
 }
@@ -26,7 +28,11 @@ const POSITION_LABEL: Record<string, string> = {
   GK: '门'
 }
 
-export function PostMatchRatingModal({visible, activityId, form, onClose, onSubmitted}: PostMatchRatingModalProps) {
+function formatFee(amount: number): string {
+  return amount.toFixed(2)
+}
+
+export function PostMatchRatingModal({visible, activityId, form, perPersonFee, qrUrl, onClose, onSubmitted}: PostMatchRatingModalProps) {
   const [scores, setScores] = useState<Record<string, number>>({})
   const [submitting, setSubmitting] = useState(false)
   const [present, setPresent] = useState(false)
@@ -63,6 +69,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
 
   const scoredCount = Object.keys(scores).length
   const total = viewForm.participants.filter((member) => !member.is_self).length
+  const paymentAmount = perPersonFee === null ? null : Number(perPersonFee)
 
   const chooseScore = (memberId: string, score: number) => {
     setScores((current) => {
@@ -132,7 +139,7 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                     const value = score ?? 0
                     const isSelf = member.is_self
                     return (
-                      <div key={member.id} className="relative h-16 px-1.5 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
+                      <div key={member.id} className="relative h-14 px-3 flex items-center gap-0.5 bg-background border-b border-border/40 last:border-b-0">
                         <div className="h-full shrink-0 flex items-center justify-center mr-1.5"><Avatar url={member.avatar_url} name={member.nickname} size="sm" /></div>
                         <span className="w-[25%] min-w-0 shrink-0 text-sm text-foreground truncate whitespace-nowrap">{member.nickname || '队员'}</span>
                         <span className="absolute left-1/2 -translate-x-1/2 w-6 text-center text-xs text-muted-foreground whitespace-nowrap">
@@ -177,6 +184,26 @@ export function PostMatchRatingModal({visible, activityId, form, onClose, onSubm
                 </div>
               </div>
             ))}
+            {paymentAmount !== null && Number.isFinite(paymentAmount) && paymentAmount >= 0 && qrUrl.length > 0 && (
+              <div className="mx-1 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 flex items-center gap-3">
+                <div className="shrink-0 rounded-lg overflow-hidden border border-border/60 bg-white">
+                  <Image
+                    src={qrUrl}
+                    mode="widthFix"
+                    showMenuByLongpress
+                    className="block"
+                    style={{width: '64px'}}
+                  />
+                </div>
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <div className="min-w-0 flex-1 flex flex-col gap-1">
+                    <span className="text-base text-muted-foreground">本场人均费用</span>
+                    <span className="text-sm text-muted-foreground">详见群内，已付请忽略</span>
+                  </div>
+                  <span className="font-heading text-2xl text-primary shrink-0">¥{formatFee(paymentAmount)}</span>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollView>
 

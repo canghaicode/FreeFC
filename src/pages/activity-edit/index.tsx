@@ -106,7 +106,12 @@ function ActivityEdit() {
       setNote(act.note || '')
       setNotice(act.notice || DEFAULT_ACTIVITY_NOTICE)
     }
-    setJoinedCount(regs.length)
+    // 队员上限只统计已确认的普通队员/队长；教练不占名额，随行嘉宾占名额。
+    setJoinedCount(
+      regs
+        .filter((registration) => registration.seat_role !== 'coach' && registration.status === 'confirmed')
+        .reduce((total, registration) => total + 1 + (registration.guest_count || 0), 0)
+    )
     setLoading(false)
   }, [id])
 

@@ -12,14 +12,14 @@ import {PostMatchRatingModal} from '@/components/PostMatchRatingModal'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {SharePoster} from '@/components/SharePoster'
 import {TitleBadge} from '@/components/TitleBadge'
-import {canWithdrawByRule, defaultMatchFees, formatActivityTime, HONOR_BADGES, MATCH_FORMATS, marketValueOf, POSITION_ICONS, POSITIONS, positionShort, profileIncomplete } from '@/constants'
+import {canWithdrawByRule, DEFAULT_PAYMENT_QR_URL, defaultMatchFees, formatActivityTime, HONOR_BADGES, MATCH_FORMATS, marketValueOf, POSITION_ICONS, POSITIONS, positionShort, profileIncomplete} from '@/constants'
 import {useAuth} from '@/contexts/AuthContext'
 import {
   addActivityComment, autoSplitTeams, cancelActivity, cancelRegistration, castMatchVote, deleteActivity, getActivity,
   getActivityComments, getDefenderVoteInfo, getHiddenRatingMembers, getMatchSummary, getMatchVotes, getMyLikedCommentIds, getMyMatchVotes,
   getPaymentQr, getPostMatchRatingForm, getRegistrationsWithProfiles, getSeasonStats, joinWithSeat, removeRegistration,
-  saveMatchSummary, setGuestPosition, setGuestTeam, setPaymentQr, setRegistrationPosition, setRegistrationSeat,
-  setRegistrationTeam, settleActivityActivity, toggleCommentLike,
+  saveMatchSummary, setActivityPerPersonFee, setGuestPosition, setGuestTeam, setPaymentQr, setRegistrationPosition,
+  setRegistrationSeat, setRegistrationTeam, settleActivityActivity, toggleCommentLike,
   updateOwnProfile
 } from '@/db/api'
 import type {PostMatchRatingForm} from '@/db/api'
@@ -91,6 +91,7 @@ function ActivityDetail() {
   const [cancelling, setCancelling] = useState(false)
   const [settling, setSettling] = useState(false)
   const [showPaymentPoster, setShowPaymentPoster] = useState(false)
+  const [exportingPaymentPoster, setExportingPaymentPoster] = useState(false)
   const [venueFee, setVenueFee] = useState('')
   const [waterFee, setWaterFee] = useState('')
   /** 收款折扣（单数字，9 = 9折），空时默认 9 */
@@ -112,75 +113,105 @@ function ActivityDetail() {
   const [postMatchRatingForm, setPostMatchRatingForm] = useState<PostMatchRatingForm | null>(null)
   const [showPostMatchRating, setShowPostMatchRating] = useState(false)
   const ratingPromptDismissedRef = useRef(false)
+  const loadRequestRef = useRef(0)
 
   const loadData = useCallback(async () => {
     if (!id) return
+    const requestId = ++loadRequestRef.current
     setLoading(true)
-    const act = await getActivity(id)
-    const [regs, cmts, sm, mv, myv, liked, qr, stats, defender, ratingForm, hiddenRows] = await Promise.all([
-      getRegistrationsWithProfiles(id),
-      getActivityComments(id),
-      getMatchSummary(id),
-      getMatchVotes(id),
-      getMyMatchVotes(id),
-      getMyLikedCommentIds(id),
-      getPaymentQr(),
-      act?.season_id ? getSeasonStats(act.season_id) : Promise.resolve([]),
-      act?.season_id ? getDefenderVoteInfo(act.season_id) : Promise.resolve(null),
-      getPostMatchRatingForm(id),
-      profile?.role === 'admin' ? getHiddenRatingMembers() : Promise.resolve([])
-    ])
-    const hiddenMap: Record<string, number> = {}
-    hiddenRows.forEach((row) => {
-      if (row.hidden_rating != null) hiddenMap[row.id] = row.hidden_rating
-    })
-    setHiddenRatings(hiddenMap)
-    setPostMatchRatingForm(ratingForm)
-    if (ratingForm?.should_prompt && !ratingPromptDismissedRef.current) setShowPostMatchRating(true)
-    if (qr) {
-      setPaymentQrUrl(qr.url)
-      setPaymentQrOwner(qr.owner)
-    } else {
-      setPaymentQrUrl(null)
-      setPaymentQrOwner('')
-    }
-    setActivity(act)
-    setRegistrations(regs)
-    setComments(cmts)
-    setSummary(sm)
-    setSummaryText(sm?.content || '')
-    setVotes(mv)
-    setMyVotes(myv)
-    setMyLikedIds(liked)
-    const rankBy = (key: 'goals' | 'assists') => {
-      const map = new Map<string, number>()
-      const sorted = [...stats].sort((a, b) => b[key] - a[key]).filter((row) => row[key] > 0)
-      let rank = 0
-      let prev: number | null = null
-      sorted.forEach((row) => {
-        if (prev === null || row[key] !== prev) {
-          rank = prev === null ? 1 : rank + 1
-          prev = row[key]
+
+    try {
+      // 首屏只等待活动与报名名单；两者没有依赖，直接并行。
+      const [act, regs] = await Promise.all([
+        getActivity(id),
+        getRegistrationsWithProfiles(id)
+      ])
+      if (requestId !== loadRequestRef.current) return
+
+      setActivity(act)
+      setRegistrations(regs)
+      setLoading(false)
+      if (!act) return
+
+      // 评论、榜单、投票等均在首屏以下，后台补齐，避免阻塞活动信息和报名名单。
+      const loadSecondary = async () => {
+        const hasEnded = new Date(act.end_time || act.activity_time).getTime() <= Date.now()
+        const emptyVotes: {mvp: MatchVoteRow[]; defender: MatchVoteRow[]} = {mvp: [], defender: []}
+        const emptyMyVotes: {mvp: string | null; defender: string | null} = {mvp: null, defender: null}
+        const [cmts, sm, mv, myv, liked, qr, stats, defender, ratingForm, hiddenRows] = await Promise.all([
+          getActivityComments(id),
+          hasEnded ? getMatchSummary(id) : Promise.resolve(null),
+          hasEnded ? getMatchVotes(id) : Promise.resolve(emptyVotes),
+          hasEnded ? getMyMatchVotes(id) : Promise.resolve(emptyMyVotes),
+          getMyLikedCommentIds(id),
+          getPaymentQr(),
+          getSeasonStats(act.season_id),
+          getDefenderVoteInfo(act.season_id),
+          hasEnded ? getPostMatchRatingForm(id) : Promise.resolve(null),
+          profile?.role === 'admin' ? getHiddenRatingMembers() : Promise.resolve([])
+        ])
+        if (requestId !== loadRequestRef.current) return
+
+        const hiddenMap: Record<string, number> = {}
+        hiddenRows.forEach((row) => {
+          if (row.hidden_rating != null) hiddenMap[row.id] = row.hidden_rating
+        })
+        setHiddenRatings(hiddenMap)
+        setPostMatchRatingForm(ratingForm)
+        if (ratingForm?.should_prompt && !ratingPromptDismissedRef.current) setShowPostMatchRating(true)
+        if (qr) {
+          setPaymentQrUrl(qr.url)
+          setPaymentQrOwner(qr.owner)
+        } else {
+          setPaymentQrUrl(null)
+          setPaymentQrOwner('')
         }
-        map.set(row.user_id, rank)
-      })
-      return map
-    }
-    setGoalRank(rankBy('goals'))
-    setAssistRank(rankBy('assists'))
-    const defenseSorted = (defender?.ranking || []).filter((row) => row.points > 0)
-    const defenseMap = new Map<string, number>()
-    let defenseRank = 0
-    let defensePrev: number | null = null
-    defenseSorted.forEach((row) => {
-      if (defensePrev === null || row.points !== defensePrev) {
-        defenseRank = defensePrev === null ? 1 : defenseRank + 1
-        defensePrev = row.points
+        setComments(cmts)
+        setSummary(sm)
+        setSummaryText(sm?.content || '')
+        setVotes(mv)
+        setMyVotes(myv)
+        setMyLikedIds(liked)
+
+        const rankBy = (key: 'goals' | 'assists') => {
+          const map = new Map<string, number>()
+          const sorted = [...stats].sort((a, b) => b[key] - a[key]).filter((row) => row[key] > 0)
+          let rank = 0
+          let prev: number | null = null
+          sorted.forEach((row) => {
+            if (prev === null || row[key] !== prev) {
+              rank = prev === null ? 1 : rank + 1
+              prev = row[key]
+            }
+            map.set(row.user_id, rank)
+          })
+          return map
+        }
+        setGoalRank(rankBy('goals'))
+        setAssistRank(rankBy('assists'))
+
+        const defenseSorted = (defender?.ranking || []).filter((row) => row.points > 0)
+        const defenseMap = new Map<string, number>()
+        let defenseRank = 0
+        let defensePrev: number | null = null
+        defenseSorted.forEach((row) => {
+          if (defensePrev === null || row.points !== defensePrev) {
+            defenseRank = defensePrev === null ? 1 : defenseRank + 1
+            defensePrev = row.points
+          }
+          defenseMap.set(row.candidate_id, defenseRank)
+        })
+        setDefenseRank(defenseMap)
       }
-      defenseMap.set(row.candidate_id, defenseRank)
-    })
-    setDefenseRank(defenseMap)
-    setLoading(false)
+
+      void loadSecondary().catch((error) => {
+        console.error('Failed to load activity details:', error)
+      })
+    } catch (error) {
+      if (requestId !== loadRequestRef.current) return
+      console.error('Failed to load activity:', error)
+      setLoading(false)
+    }
   }, [id, profile?.role])
 
   useDidShow(() => {
@@ -360,6 +391,41 @@ function ActivityDetail() {
       }
     } finally {
       setQrSaving(false)
+    }
+  }
+
+  /** 保存本次计算结果后再生成收款海报，确保赛后评分显示同一人均费用。 */
+  const handleExportPaymentPoster = async () => {
+    if (exportingPaymentPoster) return
+    if (venueFee.trim() === '' && waterFee.trim() === '' && feeDefaults.venue <= 0 && feeDefaults.water <= 0) {
+      Taro.showToast({title: '请输入场地费或水费', icon: 'none'})
+      return
+    }
+    if (count <= 0) {
+      Taro.showToast({title: '暂无报名人员', icon: 'none'})
+      return
+    }
+    if (!discountValid) {
+      Taro.showToast({title: '折扣须为 1-10 的数字（如 9）', icon: 'none'})
+      return
+    }
+    if (!activity) return
+
+    const perPersonFee = Math.round((finalFee / effectiveHeadcount) * 100) / 100
+    setExportingPaymentPoster(true)
+    try {
+      const saved = await setActivityPerPersonFee(activity.id, perPersonFee)
+      if (!saved) {
+        Taro.showToast({title: '人均费用保存失败，请重试', icon: 'none'})
+        return
+      }
+      setActivity((current) => current ? {...current, per_person_fee: perPersonFee} : current)
+      setShowPaymentPoster(true)
+    } catch (error) {
+      console.error('export payment poster failed:', error)
+      Taro.showToast({title: '人均费用保存失败，请重试', icon: 'none'})
+    } finally {
+      setExportingPaymentPoster(false)
     }
   }
 
@@ -1194,8 +1260,8 @@ function ActivityDetail() {
                         onPick(next === '未定' ? null : next)
                       }}
                     >
-                      <div className="self-start px-2 py-0.5 rounded-lg bg-primary/10 flex items-center gap-1 active:scale-95 transition">
-                        <span className="text-base text-primary font-medium">{label}</span>
+                      <div className="px-2 py-0.5 rounded-lg bg-primary/10 inline-flex items-center gap-1 active:scale-95 transition">
+                        <span className="text-base text-primary font-medium whitespace-nowrap">{label}</span>
                         <div className="i-mdi-pencil-outline text-sm text-primary/70" />
                       </div>
                     </Picker>
@@ -1271,10 +1337,10 @@ function ActivityDetail() {
                             <div key={g.id} className="flex items-center gap-2.5">
                               <div className="i-mdi-account-plus-outline text-2xl text-muted-foreground/70" />
                               <div className="flex-1 min-w-0 flex flex-col gap-1">
-                                <span className="text-lg text-foreground truncate">
-                                  {g.name || `${g.owner}的嘉宾`}
-                                  <span className="text-base text-muted-foreground">（嘉宾）</span>
-                                </span>
+                                <div className="flex flex-row items-baseline min-w-0">
+                                  <span className="text-base text-muted-foreground shrink-0">（嘉宾）</span>
+                                  <span className="text-lg text-foreground truncate">{g.name || `${g.owner}的嘉宾`}</span>
+                                </div>
                                 <PosChip label={positionShort(g.position)} onPick={(v) => handleSetGuestPosition(g.id, v)} />
                               </div>
                               {canManageTeams && <span className="font-heading text-2xl text-muted-foreground/70 shrink-0">6.0</span>}
@@ -1342,10 +1408,10 @@ function ActivityDetail() {
                             <div key={g.id} className="flex items-center gap-2.5">
                               <div className="i-mdi-account-plus-outline text-2xl text-muted-foreground/70" />
                               <div className="flex-1 min-w-0 flex flex-col gap-1">
-                                <span className="text-lg text-foreground truncate">
-                                  {g.name || `${g.owner}的嘉宾`}
-                                  <span className="text-base text-muted-foreground">（嘉宾）</span>
-                                </span>
+                                <div className="flex flex-row items-baseline min-w-0">
+                                  <span className="text-base text-muted-foreground shrink-0">（嘉宾）</span>
+                                  <span className="text-lg text-foreground truncate">{g.name || `${g.owner}的嘉宾`}</span>
+                                </div>
                                 <PosChip label={positionShort(g.position)} onPick={(v) => handleSetGuestPosition(g.id, v)} />
                               </div>
                               <span className="font-heading text-2xl text-muted-foreground/70 shrink-0">6.0</span>
@@ -1407,8 +1473,10 @@ function ActivityDetail() {
                   <div className="flex flex-row flex-wrap gap-2 mt-1">
                     {unassignedGuests.map((g) => (
                       <div key={g.id} className="bg-background rounded-xl px-3 py-2 flex items-center gap-2">
-                        <span className="text-lg text-foreground">{g.name || `${g.owner}的嘉宾`}</span>
-                        <span className="text-base text-muted-foreground">（嘉宾）</span>
+                        <div className="flex flex-row items-baseline min-w-0">
+                          <span className="text-base text-muted-foreground shrink-0">（嘉宾）</span>
+                          <span className="text-lg text-foreground truncate">{g.name || `${g.owner}的嘉宾`}</span>
+                        </div>
                         <span className="text-base text-muted-foreground">{positionShort(g.position)}</span>
                         {canManageTeams && (
                           <div className="flex items-center gap-1 flex-wrap">
@@ -1748,6 +1816,8 @@ function ActivityDetail() {
         visible={showPostMatchRating}
         activityId={id}
         form={postMatchRatingForm}
+        perPersonFee={activity?.per_person_fee ?? null}
+        qrUrl={paymentQrUrl || DEFAULT_PAYMENT_QR_URL}
         onClose={closePostMatchRating}
         onSubmitted={markPostMatchRatingSubmitted}
       />
@@ -1971,26 +2041,13 @@ function ActivityDetail() {
             </div>
             <button
               type="button"
-              className="w-full flex items-center justify-center leading-none break-keep rounded-xl bg-gradient-gold lift-glow"
-              onClick={() => {
-                if (venueFee.trim() === '' && waterFee.trim() === '' && feeDefaults.venue <= 0 && feeDefaults.water <= 0) {
-                  Taro.showToast({title: '请输入场地费或水费', icon: 'none'})
-                  return
-                }
-                if (count <= 0) {
-                  Taro.showToast({title: '暂无报名人员', icon: 'none'})
-                  return
-                }
-                if (!discountValid) {
-                  Taro.showToast({title: '折扣须为 1-10 的数字（如 9）', icon: 'none'})
-                  return
-                }
-                setShowPaymentPoster(true)
-              }}
+              disabled={exportingPaymentPoster}
+              className={`w-full flex items-center justify-center leading-none break-keep rounded-xl bg-gradient-gold lift-glow ${exportingPaymentPoster ? 'opacity-60' : ''}`}
+              onClick={handleExportPaymentPoster}
             >
               <div className="py-3 px-4 flex items-center gap-2">
                 <div className="i-mdi-currency-yen text-2xl" />
-                <span className="text-xl font-medium">导出收款海报</span>
+                <span className="text-xl font-medium">{exportingPaymentPoster ? '保存费用中…' : '导出收款海报'}</span>
               </div>
             </button>
             {(venueFee.trim() !== '' || waterFee.trim() !== '' || feeDefaults.venue > 0 || feeDefaults.water > 0) && count > 0 && (

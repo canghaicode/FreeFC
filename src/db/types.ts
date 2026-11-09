@@ -21,12 +21,13 @@ export interface Profile {
   weak_foot_skill: number
   traits: string[]
   title: string | null
-  ab_shooting: number | null
-  ab_passing: number | null
-  ab_dribbling: number | null
-  ab_defending: number | null
-  ab_pace: number | null
-  ab_stamina: number | null
+  /** 以下六维均为“已保存基础值 + 成长投入”的展示投影 */
+  ab_shooting: number
+  ab_passing: number
+  ab_dribbling: number
+  ab_defending: number
+  ab_pace: number
+  ab_stamina: number
   activity: number
   home_team: string | null
   exp: number
@@ -37,6 +38,29 @@ export interface Profile {
   member_skills?: MemberSkill[] | null
   /** 已装备装备（getSquad / getSquadRoster / getSquadMember 附带 bonuses） */
   member_equipment?: {id: string; equipped: boolean; equipment: {bonuses: Record<string, number>} | null}[] | null
+}
+
+/** 六维能力值映射（固定且完整的六个键） */
+export interface AbilityValues {
+  ab_pace: number
+  ab_shooting: number
+  ab_passing: number
+  ab_dribbling: number
+  ab_defending: number
+  ab_stamina: number
+}
+
+/** 当前用户的权威基础值、成长分配、动态上限与预算 */
+export interface AbilityAllocation {
+  base: AbilityValues
+  /** 在自定义基础值之上投入的成长点 */
+  allocated: AbilityValues
+  caps: AbilityValues
+  budget: number
+  free_points: number
+  appearances: number
+  /** 仅用于展示；位置不参与上限或预算计算 */
+  position: string | null
 }
 
 /** seasons 表 */
@@ -77,6 +101,8 @@ export interface Activity {
   cancelled: boolean
   /** 是否开放赛后匿名表现评分 */
   post_match_rating_enabled: boolean
+  /** 最近一次导出收款海报时计算的人均费用（元） */
+  per_person_fee: number | null
   created_by: string | null
   created_at: string
 }

@@ -8,6 +8,7 @@ import RadarChart from '@/components/RadarChart'
 import {
   ABILITY_DIMENSIONS,
   cardTier,
+  DEFAULT_ABILITY,
   footLabel,
   homeTeamOf,
   isNegativeTrait,
@@ -33,7 +34,7 @@ export function MemberDetailModal({member, isSelf, onClose}: Props) {
   const [showPoster, setShowPoster] = useState(false)
 
   const finalAb = memberFinalAbilities(member)
-  const ovr = overallAbility(finalAb) ?? 75
+  const ovr = overallAbility(finalAb) ?? DEFAULT_ABILITY
   const tier = cardTier(ovr)
   const futPos = positionToFutCode(member.preferred_position)
   const team = homeTeamOf(member.home_team)
@@ -161,7 +162,7 @@ export function MemberDetailModal({member, isSelf, onClose}: Props) {
                     {key: 'ab_defending', label: 'DEF'},
                     {key: 'ab_stamina', label: 'PHY'}
                   ].map((item) => {
-                    const val = finalAb[item.key as keyof typeof finalAb] ?? 70
+                    const val = finalAb[item.key as keyof typeof finalAb] ?? DEFAULT_ABILITY
                     return (
                       <div key={item.key} className="flex flex-col items-center gap-0.5">
                         <span className="text-xs font-bold text-amber-200/80">{item.label}</span>
@@ -211,7 +212,7 @@ export function MemberDetailModal({member, isSelf, onClose}: Props) {
             {/* 六维数值条 */}
             <div className="w-full flex flex-col gap-2.5 mt-2">
               {ABILITY_DIMENSIONS.map((d) => {
-                const v = finalAb[d.key] ?? 0
+                const v = finalAb[d.key] ?? DEFAULT_ABILITY
                 return (
                   <div key={d.key} className="flex items-center gap-2">
                     <div className={`${d.icon} text-xl text-primary w-6`} />

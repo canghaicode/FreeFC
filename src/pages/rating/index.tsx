@@ -115,9 +115,9 @@ export default function RatingPage() {
         <div className="bg-gradient-primary px-5 pt-10 pb-12 rounded-b-[2.5rem]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="font-heading text-3xl text-primary-foreground">{hiddenMode ? '匿名隐藏分' : '球员评分'}</h1>
+              <h1 className="font-heading text-3xl text-primary-foreground">{hiddenMode ? '隐藏分' : '球员评分'}</h1>
               <p className="text-xl text-primary-foreground/80 mt-2">
-                {hiddenMode ? '最近10场有评分比赛，管理员组70% · 队员组30%' : '点击队员卡片进行打分，1-10分'}
+                {hiddenMode ? '最近10场评分，管理和队员权重7:3' : '点击队员卡片进行打分，1-10分'}
               </p>
             </div>
             {isAdmin && (

@@ -4,9 +4,9 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {useAuth} from '@/contexts/AuthContext'
 import {Avatar} from '@/components/Avatar'
-import {getMyAllMatchStats, getPendingTacticCount, getSeasons, getUserSeasonStats} from '@/db/api'
-import type {Season, SeasonStatsRow} from '@/db/types'
-import {POSITION_ICONS, overallAbility, cardTier, CARD_TIERS, type CardTier, levelFromActivity, levelProgress, homeTeamOf} from '@/constants'
+import {getMyAllMatchStats, getPendingTacticCount, getSeasons, getSquadMember, getUserSeasonStats} from '@/db/api'
+import type {Profile as ProfileRow, Season, SeasonStatsRow} from '@/db/types'
+import {POSITION_ICONS, memberFinalAbilities, overallAbility, cardTier, levelFromActivity, levelProgress, homeTeamOf} from '@/constants'
 
 function Profile() {
   const {user, profile, signOut} = useAuth()
@@ -14,18 +14,24 @@ function Profile() {
   const [seasons, setSeasons] = useState<Season[]>([])
   const [reportedCount, setReportedCount] = useState(0)
   const [pendingTacticCount, setPendingTacticCount] = useState(0)
+  const [abilityMember, setAbilityMember] = useState<ProfileRow | null>(null)
+  const [abilityLoading, setAbilityLoading] = useState(true)
+  const [abilityError, setAbilityError] = useState(false)
 
   const loadedUserId = useRef<string | null | undefined>(undefined)
   const userRef = useRef(user)
   userRef.current = user
   const loadData = useCallback(async () => {
     const currentUser = userRef.current
+    setAbilityLoading(true)
+    setAbilityError(false)
     try {
-      const [seasonList, allStats, pendingTactics, mySeasonStats] = await Promise.all([
+      const [seasonList, allStats, pendingTactics, mySeasonStats, fullAbilityMember] = await Promise.all([
         getSeasons().catch(() => []),
         getMyAllMatchStats().catch(() => []),
         getPendingTacticCount().catch(() => 0),
-        currentUser ? getUserSeasonStats(currentUser.id).catch(() => []) : Promise.resolve([])
+        currentUser ? getUserSeasonStats(currentUser.id).catch(() => []) : Promise.resolve([]),
+        currentUser ? getSquadMember(currentUser.id).catch(() => null) : Promise.resolve(null)
       ])
       setSeasons(seasonList)
       setReportedCount(allStats.length)
@@ -33,8 +39,14 @@ function Profile() {
       const active = seasonList.find((season) => season.is_active) || seasonList[0]
       const stats = (mySeasonStats ?? []) as SeasonStatsRow[]
       setMyStats(active ? stats.find((row) => row.season_id === active.id) || null : null)
+      setAbilityMember(fullAbilityMember)
+      setAbilityError(!!currentUser && !fullAbilityMember)
     } catch (err) {
       console.error('Failed to load profile data:', err)
+      setAbilityMember(null)
+      setAbilityError(!!currentUser)
+    } finally {
+      setAbilityLoading(false)
     }
   }, [])
 
@@ -57,7 +69,7 @@ function Profile() {
     Taro.reLaunch({url: '/pages/login/index'})
   }
 
-  const ability = overallAbility(profile ?? null)
+  const ability = abilityMember ? overallAbility(memberFinalAbilities(abilityMember)) : null
   const preferredPosition = (profile?.preferred_position as string | null) ?? null
   const secondaryPosition = (profile?.secondary_position as string | null) ?? null
   const activeSeason = seasons.find((s) => s.is_active) || seasons[0]
@@ -142,8 +154,8 @@ function Profile() {
         {/* 能力值 + 本赛季数据 */}
         <div className="bg-card rounded-2xl gold-frame p-5 flex flex-row items-center">
           <div className="flex-1 flex flex-col items-center gap-1">
-            <span className="font-heading text-4xl text-primary">{ability ?? '--'}</span>
-            <span className="text-lg text-muted-foreground">能力总评</span>
+            <span className="font-heading text-4xl text-primary">{abilityLoading ? '…' : ability ?? '--'}</span>
+            <span className="text-lg text-muted-foreground">{abilityError ? '能力加载失败' : '能力总评'}</span>
           </div>
           <div className="w-px h-14 bg-border" />
           <div className="flex-[3] flex flex-row justify-around">

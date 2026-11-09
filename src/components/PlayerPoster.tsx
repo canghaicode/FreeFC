@@ -12,7 +12,7 @@ import Taro from '@tarojs/taro'
 import {Canvas, Image} from '@tarojs/components'
 import type {Profile} from '@/db/types'
 import {
-  overallAbility, cardTier, abilitiesWithBonus, skillBonuses,
+  overallAbility, cardTier, memberFinalAbilities, DEFAULT_ABILITY,
   footLabel, titleOf, levelFromActivity, homeTeamOf, isNegativeTrait, positionToFutCode
 } from '@/constants'
 
@@ -331,8 +331,8 @@ export function PlayerPoster({visible, member, onClose}: PlayerPosterProps) {
       ctx.translate((cssW - drawW) / 2, (cssH - drawH) / 2)
       ctx.scale(scale, scale)
 
-      const finalAb = abilitiesWithBonus(member, skillBonuses(member.member_skills))
-      const ovr = overallAbility(finalAb) ?? 75
+      const finalAb = memberFinalAbilities(member)
+      const ovr = overallAbility(finalAb) ?? DEFAULT_ABILITY
       const tier = cardTier(ovr)
       const theme = TIER_THEMES[tier.key] || TIER_THEMES.gold
       const levelDef = levelFromActivity(member.activity)
@@ -723,8 +723,8 @@ export function PlayerPoster({visible, member, onClose}: PlayerPosterProps) {
       for (let i = 0; i < FUT_STATS.length; i++) {
         const item = FUT_STATS[i]
         const colCenterX = panelX + i * colW + colW / 2
-        const rawVal = finalAb[item.key as keyof typeof finalAb] ?? 70
-        const statVal = Math.min(99, Math.max(40, Number(rawVal) || 70))
+        const rawVal = finalAb[item.key as keyof typeof finalAb] ?? DEFAULT_ABILITY
+        const statVal = Math.min(99, Math.max(0, rawVal))
 
         // 属性缩写 PAC / SHO / PAS ...
         ctx.textAlign = 'center'

@@ -10,7 +10,7 @@ import {useEffect, useRef, useState} from 'react'
 import Taro, {useReady} from '@tarojs/taro'
 import {Canvas, Image} from '@tarojs/components'
 import type {Activity, Registration} from '@/db/types'
-import {formatActivityTime} from '@/constants'
+import {DEFAULT_PAYMENT_QR_URL, formatActivityTime} from '@/constants'
 
 interface PaymentPosterProps {
   visible: boolean
@@ -28,13 +28,6 @@ interface PaymentPosterProps {
   qrOwner?: string | null
   onClose: () => void
 }
-
-/** 队长 Seven 7 微信收款码（项目 Supabase Storage 永久地址）
- * 原临时 CDN 链接会过期且域名不在小程序 downloadFile 白名单内，导致二维码缺失；
- * 现从 TARO_APP_SUPABASE_URL 派生，与头像同域名，必然在白名单内。
- */
-const SUPABASE_BASE = String(process.env.TARO_APP_SUPABASE_URL || '')
-const WECHAT_PAY_QR_URL = `${SUPABASE_BASE}/storage/v1/object/public/minicode/posters/wechat-pay-qr.png`
 
 const W = 750
 
@@ -407,7 +400,7 @@ export function PaymentPoster({visible, activity, registrations, venueFee, water
       const qrSize = 180
       const qrX = W - 45 - qrSize - 18
       const qrY = qrCardY + 18
-      const effectiveQrUrl = qrUrl && qrUrl.length > 0 ? qrUrl : WECHAT_PAY_QR_URL
+      const effectiveQrUrl = qrUrl && qrUrl.length > 0 ? qrUrl : DEFAULT_PAYMENT_QR_URL
 
       const qrImg = await loadPosterImage(canvas, effectiveQrUrl)
       if (qrImg) {
@@ -418,7 +411,14 @@ export function PaymentPoster({visible, activity, registrations, venueFee, water
         ctx.strokeStyle = 'rgba(43, 162, 69, 0.3)'
         ctx.lineWidth = 1
         ctx.stroke()
-        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
+        const sourceWidth = Number(qrImg.naturalWidth || qrImg.width || qrSize)
+        const sourceHeight = Number(qrImg.naturalHeight || qrImg.height || qrSize)
+        const scale = Math.min(qrSize / sourceWidth, qrSize / sourceHeight, 1)
+        const drawWidth = sourceWidth * scale
+        const drawHeight = sourceHeight * scale
+        const drawX = qrX + (qrSize - drawWidth) / 2
+        const drawY = qrY + (qrSize - drawHeight) / 2
+        ctx.drawImage(qrImg, drawX, drawY, drawWidth, drawHeight)
       } else {
         // 兜底二维码占位框
         ctx.fillStyle = '#FFFFFF'
