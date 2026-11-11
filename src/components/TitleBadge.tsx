@@ -18,7 +18,7 @@ interface Props {
   size?: 'sm' | 'md'
 }
 
-/** 佩戴称号徽章：荣誉类用特制颜色框，自由称号用柔和底色 */
+/** 佩戴称号徽章：荣誉类用特制颜色框，自由称号用浅底加同色细边。 */
 export function TitleBadge({titleKey, size = 'md'}: Props) {
   const def = titleKey ? titleOf(titleKey) : null
   if (!def) return null
@@ -26,9 +26,14 @@ export function TitleBadge({titleKey, size = 'md'}: Props) {
   const frame = isHonor ? HONOR_FRAME[def.key] || def.cls : def.cls
   const pad = size === 'sm' ? 'px-1.5 py-0.5' : 'px-2 py-0.5'
   return (
-    <span className={`flex items-center gap-0.5 rounded-md border-2 ${pad} text-base shrink-0 ${frame}`}>
+    <div
+      className={`flex items-center gap-0.5 rounded-md text-base shrink-0 ${pad} ${
+        isHonor ? `border-2 ${frame}` : `border border-solid border-current ${frame}`
+      }`}
+      style={isHonor ? undefined : {borderColor: 'currentColor'}}
+    >
       <div className={`${def.icon} text-base`} />
       {def.label}
-    </span>
+    </div>
   )
 }

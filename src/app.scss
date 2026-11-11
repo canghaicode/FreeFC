@@ -191,6 +191,10 @@
   .fade-rise {
     animation: fade-rise 520ms ease-out both;
   }
+  .rating-status-reveal {
+    overflow: hidden;
+    animation: rating-status-reveal 520ms ease-in-out both;
+  }
   .scale-in {
     animation: scale-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
@@ -246,6 +250,18 @@
   from { opacity: 0; transform: translateY(12rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes rating-status-reveal {
+  from {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-8rpx);
+  }
+  to {
+    max-height: 150rpx;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.86); }
   to { opacity: 1; transform: scale(1); }
@@ -264,6 +280,8 @@
   .font-heading {
     font-family: 'SourceHanSerifCN', 'AlibabaPuHuiTi', serif;
   }
+
+
 
 
   /* 球星卡品质徽章（FIFA 金属质感 × 新艺术配色） */
@@ -346,7 +364,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .float-slow,
-  .fade-rise {
+  .fade-rise,
+  .rating-status-reveal {
     animation: none;
   }
 }

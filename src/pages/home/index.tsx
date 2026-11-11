@@ -6,7 +6,7 @@ import {useBackgroundRefresh, useCachedState} from '@/hooks/useBackgroundRefresh
 import {PostMatchRatingModal} from '@/components/PostMatchRatingModal'
 import {LogoBg} from '@/components/LogoBg'
 import {withRouteGuard} from '@/components/RouteGuard'
-import {DEFAULT_PAYMENT_QR_URL, formatActivityTime, MATCH_FORMATS} from '@/constants'
+import {DEFAULT_PAYMENT_QR_URL, formatActivityTime, isRestrictedAccount, MATCH_FORMATS} from '@/constants'
 import {useAuth} from '@/contexts/AuthContext'
 import {getActivities, getActiveSeasonActivities, getKickRequests, getMyRegisteredActivityIds, getPaymentQr, getPostMatchRatingForm, hasOpenPolls} from '@/db/api'
 import type {PostMatchRatingForm} from '@/db/api'
@@ -14,7 +14,7 @@ import type {ActivityWithCount, KickRequest, Season} from '@/db/types'
 
 // 蹲坑专区暂时下线；保留页面与实现，重新开放时只需切换此开关。
 const SHOW_DUNKU_ENTRY = false
-// 投票中心：对登录用户开放；未登录与 admin 账号不显示入口。
+// 投票中心：对资料完整的登录用户开放；未登录与受限账号不显示入口。
 const SHOW_VOTE_CENTER_ENTRY = true
 
 const POST_MATCH_RATING_WINDOW_MS = 72 * 60 * 60 * 1000
@@ -75,8 +75,7 @@ function activityStatus(a: ActivityWithCount) {
 
 function Home() {
   const {user, profile} = useAuth()
-  const loginUsername = profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || ''
-  const isAdminAccount = String(loginUsername).trim().toLowerCase() === 'admin'
+  const restrictedAccount = isRestrictedAccount(profile, user)
   const isAdmin = profile?.role === 'admin'
 
   const [activeSeason, setActiveSeason] = useCachedState<Season | null>('home-season', null)
@@ -223,7 +222,7 @@ function Home() {
           </div>
         )}
 
-        {SHOW_VOTE_CENTER_ENTRY && !loading && !!user && !isAdminAccount && openPolls && (
+        {SHOW_VOTE_CENTER_ENTRY && !loading && !!user && !restrictedAccount && openPolls && (
           <div
             className="bg-card rounded-2xl border-2 border-primary/30 lift-glow p-4 flex items-center gap-4"
             onClick={() => Taro.navigateTo({url: '/pages/vote-center/index'})}
@@ -239,7 +238,7 @@ function Home() {
           </div>
         )}
 
-        {!!user && !isAdminAccount && (
+        {!!user && !restrictedAccount && (
           <div
             className="bg-card rounded-2xl border-2 border-primary/30 lift-glow p-4 flex items-center gap-4"
             onClick={() => Taro.navigateTo({url: '/pages/gallery/index'})}

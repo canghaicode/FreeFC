@@ -544,6 +544,13 @@ export async function getMySeasonHonors(seasonId: string, userId: string): Promi
 }
 
 /* ---------------- 赛后数据 ---------------- */
+const MATCH_STATS_WRITE_MESSAGES = [
+  '活动不存在',
+  '活动已取消，无法填报数据',
+  '活动已结算，无法修改数据',
+  '数据填报已截止，系统已结算不可修改',
+  '未报名本场活动，无法填报数据'
+] as const
 
 export async function upsertMatchStats(
   activityId: string,
@@ -552,18 +559,13 @@ export async function upsertMatchStats(
 ): Promise<{ok: boolean; message?: string}> {
   const userId = await getCurrentUserId()
   if (!userId) return {ok: false, message: '请先登录'}
-  // 已取消 / 12 小时截止校验
-  const {data: act} = await supabase.from('activities').select('end_time, activity_time, cancelled').eq('id', activityId).maybeSingle()
-  if (act?.cancelled) return {ok: false, message: '活动已取消，无法填报数据'}
-  if (act && new Date(act.end_time || act.activity_time).getTime() + 12 * 3600 * 1000 <= Date.now()) {
-    return {ok: false, message: '数据填报已截止，系统已结算不可修改'}
-  }
   const {error} = await supabase
     .from('match_stats')
     .upsert({activity_id: activityId, user_id: userId, goals, assists}, {onConflict: 'activity_id,user_id'})
   if (error) {
     console.error('upsertMatchStats failed:', error.message)
-    return {ok: false, message: '填报失败'}
+    const message = MATCH_STATS_WRITE_MESSAGES.find((candidate) => error.message.includes(candidate))
+    return {ok: false, message: message ?? '填报失败，请重试'}
   }
   return {ok: true}
 }
@@ -1644,7 +1646,7 @@ export async function submitPostMatchRatings(activityId: string, ratings: PostMa
   return {ok: !!result?.ok, message: result?.message || (result?.ok ? '匿名评分已提交' : '提交失败')}
 }
 
-/** 管理员隐藏分榜单：最近10场有评分比赛，单场按管理员70%/队员30%合成。 */
+/** 管理员隐藏分榜单：最近10场。同场管理员70%/队员30%；只有管理员的场权重0.7，只有队员的场权重0.3。 */
 export async function getHiddenRatingMembers(): Promise<HiddenRatingMemberRow[]> {
   const {data, error} = await supabase.rpc('get_hidden_rating_members')
   if (error) {

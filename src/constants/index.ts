@@ -928,6 +928,25 @@ export function profileIncomplete(p?: {
   return null
 }
 
+/** 内置 admin 账号或基础资料未完成的账号使用受限界面；资料尚未加载时不提前限制。 */
+export function isRestrictedAccount(
+  profile?: {
+    username?: string | null
+    nickname?: string | null
+    jersey_number?: number | null
+    preferred_position?: string | null
+  } | null,
+  user?: {
+    email?: string | null
+    user_metadata?: {username?: unknown} | null
+  } | null
+): boolean {
+  const metadataUsername = typeof user?.user_metadata?.username === 'string' ? user.user_metadata.username : ''
+  const username = profile?.username || metadataUsername || user?.email?.split('@')[0] || ''
+  if (username.trim().toLowerCase() === 'admin') return true
+  return !!profile && profileIncomplete(profile) !== null
+}
+
 /** 技能加成载体（member_skills 行的子集） */
 export interface SkillBonusCarrier {
   equipped: boolean

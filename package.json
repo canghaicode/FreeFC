@@ -16,6 +16,7 @@
     "dev:weapp": "taro build --type weapp --watch",
     "build": "taro build --type weapp",
     "build:weapp": "taro build --type weapp",
+    "preview:weapp": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/wechat-preview.ps1",
     "postinstall": "weapp-tw patch",
     "lint": "mp-devkit-lint"
   },

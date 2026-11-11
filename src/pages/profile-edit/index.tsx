@@ -5,7 +5,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {CachedAvatarImage} from '@/components/Avatar'
 import {withRouteGuard} from '@/components/RouteGuard'
-import {FEET, isConditionalTitle, NEGATIVE_TRAITS, POSITIONS, POSITIVE_TRAITS, TITLES, titleOf } from '@/constants'
+import {FEET, isConditionalTitle, isRestrictedAccount, NEGATIVE_TRAITS, POSITIONS, POSITIVE_TRAITS, TITLES, titleOf} from '@/constants'
 import {useAuth} from '@/contexts/AuthContext'
 import {getMySeasonHonors, getSeasons, updateOwnProfile } from '@/db/api'
 import {type FileInput, selectMediaFiles, uploadToSupabase } from '@/utils/upload'
@@ -227,8 +227,7 @@ function ProfileEdit() {
   const fieldCls = 'border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden'
   const buttonDisabled = saving || uploading
   const isWeapp = Taro.getEnv() === 'WEAPP'
-  const loginUsername = profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || ''
-  const isAdminAccount = String(loginUsername).trim().toLowerCase() === 'admin'
+  const restrictedAccount = isRestrictedAccount(profile, user)
 
   return (
     <div className="min-h-screen bg-background px-5 py-6 flex flex-col gap-4">
@@ -258,7 +257,7 @@ function ProfileEdit() {
                 </div>
               </Button>
             )}
-            {!isAdminAccount && (
+            {!restrictedAccount && (
               <button
                 type="button"
                 className={`w-full flex items-center justify-center leading-none break-keep rounded-xl border-2 border-primary/30 bg-secondary/30 ${

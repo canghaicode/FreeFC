@@ -293,7 +293,7 @@ function Stats() {
                       <span className="font-heading text-xl">{rank}</span>
                     </div>
                   )}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${medalCls(index)}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${medalCls(index + 1)}`}>
                     <span className="font-heading text-xl">{index + 1}</span>
                   </div>
                   <Avatar url={row.avatar_url} name={row.nickname} />

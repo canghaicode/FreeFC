@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
 import Taro from '@tarojs/taro'
+import {isRestrictedAccount} from '@/constants'
 import {useAuth} from '@/contexts/AuthContext'
 import {LogoBg} from '@/components/LogoBg'
 
@@ -24,7 +25,7 @@ const TAB_BAR_PATHS = [
   'pages/profile/index'
 ]
 
-/** 投票/相册/发布：静态标题先停在 Free loding，未登录或无权限直接回活动页 */
+/** 投票/相册/发布：静态标题先停在 Free loding，未登录、受限账号或无权限直接回活动页 */
 const GATED_TITLES: {path: string; title: string; adminOnly?: boolean}[] = [
   {path: 'pages/vote-center/index', title: '投票中心'},
   {path: 'pages/vote-create/index', title: '发起投票'},
@@ -163,10 +164,9 @@ function RouteGuard({children}: {children: React.ReactNode}) {
   const isPublic = isPublicPage(path)
   const gated = gatedTitle(path)
   const pageTitle = gated?.title ?? null
-  const loginUsername = profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || ''
-  const isAdminAccount = String(loginUsername).trim().toLowerCase() === 'admin'
+  const restrictedAccount = isRestrictedAccount(profile, user)
   const lacksPageRole = !!gated?.adminOnly && profile?.role !== 'admin'
-  const gatedBlocked = !!gated && !loading && (!user || isAdminAccount || lacksPageRole)
+  const gatedBlocked = !!gated && !loading && (!user || restrictedAccount || lacksPageRole)
 
   useEffect(() => {
     if (!gatedBlocked) return
@@ -174,9 +174,9 @@ function RouteGuard({children}: {children: React.ReactNode}) {
   }, [gatedBlocked])
 
   useEffect(() => {
-    if (!pageTitle || loading || !user || isAdminAccount || lacksPageRole) return
+    if (!pageTitle || loading || !user || restrictedAccount || lacksPageRole) return
     Taro.setNavigationBarTitle({title: pageTitle})
-  }, [pageTitle, loading, user, isAdminAccount, lacksPageRole])
+  }, [pageTitle, loading, user, restrictedAccount, lacksPageRole])
 
   useEffect(() => {
     if (loading || user || isTabBar || isPublic || !path || pageTitle) return
@@ -191,7 +191,7 @@ function RouteGuard({children}: {children: React.ReactNode}) {
     Taro.navigateTo({url: LOGIN_PAGE_PATH})
   }, [user, loading, isTabBar, isPublic, path, pageTitle])
 
-  if (pageTitle && (loading || !user || isAdminAccount || lacksPageRole)) {
+  if (pageTitle && (loading || !user || restrictedAccount || lacksPageRole)) {
     return <div className="min-h-screen bg-background" />
   }
 

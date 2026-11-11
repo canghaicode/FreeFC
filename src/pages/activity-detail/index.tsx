@@ -12,7 +12,7 @@ import {PostMatchRatingModal} from '@/components/PostMatchRatingModal'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {SharePoster} from '@/components/SharePoster'
 import {TitleBadge} from '@/components/TitleBadge'
-import {canWithdrawByRule, DEFAULT_PAYMENT_QR_URL, defaultMatchFees, formatActivityTime, HONOR_BADGES, MATCH_FORMATS, marketValueOf, POSITION_ICONS, POSITIONS, positionShort, profileIncomplete} from '@/constants'
+import {canWithdrawByRule, DEFAULT_PAYMENT_QR_URL, defaultMatchFees, formatActivityTime, HONOR_BADGES, isRestrictedAccount, MATCH_FORMATS, marketValueOf, POSITION_ICONS, POSITIONS, positionShort, profileIncomplete} from '@/constants'
 import {useAuth} from '@/contexts/AuthContext'
 import {
   addActivityComment, autoSplitTeams, cancelActivity, cancelRegistration, castMatchVote, deleteActivity, getActivity,
@@ -58,8 +58,7 @@ function formatTimeRange(startIso: string, endIso: string | null): string {
 function ActivityDetail() {
   const id = useMemo(() => Taro.getCurrentInstance().router?.params?.id || '', [])
   const {user, profile} = useAuth()
-  const loginUsername = profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || ''
-  const isAdminAccount = String(loginUsername).trim().toLowerCase() === 'admin'
+  const restrictedAccount = isRestrictedAccount(profile, user)
 
   const [activity, setActivity] = useState<Activity | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
@@ -906,9 +905,11 @@ function ActivityDetail() {
           )}
           {postMatchRatingForm?.eligible && (
             postMatchRatingForm.submitted ? (
-              <div className="mt-3 rounded-xl px-4 py-3 flex items-center gap-2 bg-amber-500/10">
-                <div className="i-mdi-check-decagram-outline text-2xl text-amber-600" />
-                <span className="text-lg text-amber-700">本场表现评分已提交</span>
+              <div className="rating-status-reveal">
+                <div className="mt-3 rounded-xl px-4 py-3 flex items-center gap-2 bg-amber-500/10">
+                  <div className="i-mdi-check-decagram-outline text-2xl text-amber-600" />
+                  <span className="text-lg text-amber-700">本场表现评分已提交</span>
+                </div>
               </div>
             ) : (
               <button
@@ -1619,7 +1620,7 @@ function ActivityDetail() {
       )}
 
       {/* 评论区 */}
-      {!isAdminAccount && (
+      {!restrictedAccount && (
 
       <div className="mt-4 mb-8 bg-card rounded-2xl border-2 border-border/60 overflow-hidden">
         <div
