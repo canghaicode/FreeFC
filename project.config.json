@@ -32,7 +32,9 @@
     "srcMiniprogramRoot": "dist/",
     "packOptions": {
         "ignore": [],
-        "include": []
+        "include": [
+            {"type": "folder", "value": "dist/pages/charter"}
+        ]
     },
     "condition": {},
     "editorSetting": {

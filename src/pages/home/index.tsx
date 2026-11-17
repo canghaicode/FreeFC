@@ -58,19 +58,77 @@ function playerCount(a: ActivityWithCount) {
   )
 }
 
+function activityTimeMs(activity: ActivityWithCount) {
+  return new Date(activity.end_time || activity.activity_time).getTime()
+}
+
+/** 以结束时间划分未结束和历史；没有结束时间的旧数据回退开赛时间。 */
+function isActivityEnded(activity: ActivityWithCount, now = Date.now()) {
+  return activityTimeMs(activity) <= now
+}
+
 /** 活动状态：已取消 / 已结束 / 已满员 / 报名中 */
-function activityStatus(a: ActivityWithCount) {
-  const count = playerCount(a)
-  if (a.cancelled) {
+function activityStatus(activity: ActivityWithCount) {
+  const count = playerCount(activity)
+  if (activity.cancelled) {
     return {label: '已取消', cls: 'bg-destructive/10 text-destructive'}
   }
-  if (new Date(a.activity_time).getTime() <= Date.now()) {
+  if (isActivityEnded(activity)) {
     return {label: '已结束', cls: 'bg-muted text-muted-foreground'}
   }
-  if (count >= a.max_players) {
+  if (count >= activity.max_players) {
     return {label: '已满员', cls: 'bg-destructive/10 text-destructive'}
   }
   return {label: '报名中', cls: 'bg-primary/10 text-primary'}
+}
+
+function renderActivityCard(activity: ActivityWithCount, joined: boolean) {
+  const count = playerCount(activity)
+  const status = activityStatus(activity)
+  return (
+    <div
+      key={activity.id}
+      className="bg-card rounded-2xl gold-frame p-4 lift-glow"
+      onClick={() => Taro.navigateTo({url: `/pages/activity-detail/index?id=${activity.id}`})}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 flex-wrap">
+          <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-base font-medium">
+            {MATCH_FORMATS[activity.match_format || '11']?.name || '11人制'}
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground text-base font-medium">
+            {activity.match_type === 'external' ? '外战' : '内战'}
+          </span>
+          <h3 className="font-heading text-2xl text-foreground">{activity.title}</h3>
+        </div>
+        <span className={`px-3 py-1 rounded-full text-lg ${status.cls}`}>{status.label}</span>
+      </div>
+      <div className="flex flex-col gap-2 mt-3">
+        <div className="flex items-center gap-2">
+          <div className="i-mdi-calendar-month-outline text-2xl text-primary" />
+          <span className="text-xl text-muted-foreground">{formatActivityTime(activity.activity_time)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="i-mdi-map-marker-outline text-2xl text-primary" />
+          <span className="text-xl text-muted-foreground flex-1 overflow-hidden">{activity.location}</span>
+          {joined && (
+            <span className="px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground text-lg">已报名</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mt-3">
+        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full bg-gradient-gold rounded-full"
+            style={{width: `${Math.min(100, (count / activity.max_players) * 100)}%`}}
+          />
+        </div>
+        <span className="text-lg text-muted-foreground">
+          {count}/{activity.max_players} 人
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function Home() {
@@ -148,6 +206,14 @@ function Home() {
     setShowPostMatchRating(false)
     setPendingPostMatchRating(null)
   }
+
+  const now = Date.now()
+  const upcomingActivities = activities
+    .filter((activity) => !isActivityEnded(activity, now))
+    .sort((a, b) => activityTimeMs(a) - activityTimeMs(b) || a.id.localeCompare(b.id))
+  const historyActivities = activities
+    .filter((activity) => isActivityEnded(activity, now))
+    .sort((a, b) => activityTimeMs(b) - activityTimeMs(a) || a.id.localeCompare(b.id))
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -265,58 +331,17 @@ function Home() {
           </div>
         )}
 
-        {activities.length > 0 &&
-          activities.map((a) => {
-            const count = playerCount(a)
-            const status = activityStatus(a)
-            const joined = myJoined.includes(a.id)
-            return (
-              <div
-                key={a.id}
-                className="bg-card rounded-2xl gold-frame p-4 lift-glow"
-                onClick={() => Taro.navigateTo({url: `/pages/activity-detail/index?id=${a.id}`})}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-base font-medium">
-                      {MATCH_FORMATS[a.match_format || '11']?.name || '11人制'}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground text-base font-medium">
-                      {a.match_type === 'external' ? '外战' : '内战'}
-                    </span>
-                    <h3 className="font-heading text-2xl text-foreground">{a.title}</h3>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-lg ${status.cls}`}>{status.label}</span>
-                </div>
-                <div className="flex flex-col gap-2 mt-3">
-                  <div className="flex items-center gap-2">
-                    <div className="i-mdi-calendar-month-outline text-2xl text-primary" />
-                    <span className="text-xl text-muted-foreground">{formatActivityTime(a.activity_time)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="i-mdi-map-marker-outline text-2xl text-primary" />
-                    <span className="text-xl text-muted-foreground flex-1 overflow-hidden">{a.location}</span>
-                    {joined && (
-                      <span className="px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground text-lg">
-                        已报名
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 mt-3">
-                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-gold rounded-full"
-                      style={{width: `${Math.min(100, (count / a.max_players) * 100)}%`}}
-                    />
-                  </div>
-                  <span className="text-lg text-muted-foreground">
-                    {count}/{a.max_players} 人
-                  </span>
-                </div>
-              </div>
-            )
-          })}
+        {upcomingActivities.map((activity) => renderActivityCard(activity, myJoined.includes(activity.id)))}
+
+        {historyActivities.length > 0 && (
+          <div className="w-full flex items-center">
+            <div className="vine-divider-side flex-1" />
+            <span className="px-3 text-base text-muted-foreground">历史活动</span>
+            <div className="vine-divider-side-end flex-1" />
+          </div>
+        )}
+
+        {historyActivities.map((activity) => renderActivityCard(activity, myJoined.includes(activity.id)))}
       </div>
     </div>
       <PostMatchRatingModal

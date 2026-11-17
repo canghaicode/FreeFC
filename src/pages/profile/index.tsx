@@ -216,10 +216,10 @@ function Profile() {
           </div>
           <div
             className="flex items-center gap-3 p-4 border-b-2 border-border/50 active:bg-muted/50"
-            onClick={() => Taro.navigateTo({url: '/pages/home-team/index'})}
+            onClick={() => Taro.navigateTo({url: '/pages/parking-qr/index'})}
           >
-            <div className="i-mdi-shield-star-outline text-3xl text-primary" />
-            <span className="flex-1 text-xl text-foreground">选择主队</span>
+            <div className="i-mdi-qrcode text-3xl text-primary" />
+            <span className="flex-1 text-xl text-foreground">锐博停车码</span>
             <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
           </div>
           <div
@@ -261,10 +261,18 @@ function Profile() {
           </div>
           <div
             className="flex items-center gap-3 p-4 border-b-2 border-border/50 active:bg-muted/50"
-            onClick={() => Taro.navigateTo({url: '/pages/parking-qr/index'})}
+            onClick={() => Taro.navigateTo({url: '/pages/home-team/index'})}
           >
-            <div className="i-mdi-qrcode text-3xl text-primary" />
-            <span className="flex-1 text-xl text-foreground">锐博停车码</span>
+            <div className="i-mdi-shield-star-outline text-3xl text-primary" />
+            <span className="flex-1 text-xl text-foreground">选择主队</span>
+            <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+          </div>
+          <div
+            className="flex items-center gap-3 p-4 border-b-2 border-border/50 active:bg-muted/50"
+            onClick={() => Taro.navigateTo({url: '/pages/charter/index'})}
+          >
+            <div className="i-mdi-book-open-page-variant text-3xl text-primary" />
+            <span className="flex-1 text-xl text-foreground">球队章程</span>
             <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
           </div>
           {/* // [compliance] M02 隐私政策查看入口 / M07 双清单查看入口 / M09 账号注销入口 */}

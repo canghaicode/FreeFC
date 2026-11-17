@@ -19,6 +19,7 @@ const pages = [
   'pages/captain-admin/index',
   'pages/fifa-skills/index',
   'pages/home-team/index',
+  'pages/charter/index',
   'pages/tactics-board/index',
   'pages/activity-edit/index',
   'pages/dunku/index',

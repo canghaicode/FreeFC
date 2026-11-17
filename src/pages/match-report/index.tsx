@@ -202,7 +202,7 @@ function MatchReport() {
           {/* 助攻 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="i-mdi-hand-clap-outline text-3xl text-primary" />
+              <div className="i-mdi-handshake text-3xl text-primary" />
               <span className="text-xl text-foreground">助攻</span>
             </div>
             <div className="flex items-center gap-3">
