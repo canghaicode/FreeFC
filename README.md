@@ -51,10 +51,9 @@
 │   │   ├── gallery/            #   群相册
 │   │   ├── album-detail/       #   相册详情
 │   │   ├── equipment/          #   装备系统
-│   │   ├── dunku/              #   装备图库(图床上传)
+│   │   ├── dunku/              #   装备图库
 │   │   ├── parking-qr/         #   停车码
 │   │   ├── fifa-skills/        #   FIFA 技能图鉴
-│   │   ├── picui-settings/     #   图床配置
 │   │   ├── login/              #   登录
 │   │   ├── account-delete/     #   注销账号
 │   │   ├── user-agreement/     #   用户协议(登录前可访问)
@@ -63,7 +62,7 @@
 │   ├── store/                  # 全局状态(预留,见内 README)
 │   ├── styles/                 # 全局样式覆写
 │   ├── types/                  # TypeScript 全局类型声明
-│   └── utils/                  # 工具函数(海报导出、上传、图床)
+│   └── utils/                  # 工具函数(海报导出、上传等)
 ├── supabase/
 │   ├── config.toml             # Supabase 本地/远程配置
 │   ├── functions/              # Edge Functions(登录、上传、结算等)
@@ -89,11 +88,13 @@
 ```bash
 pnpm install          # 安装依赖(install 后自动执行 weapp-tw patch)
 pnpm run dev          # 开发模式编译微信小程序(--watch)
-pnpm run build        # 生产构建,产物输出到 dist/
+pnpm run build        # 仅生成生产构建到 dist/
+pnpm run preview:weapp # 强制清 dist、构建、清微信缓存并自动预览
+pnpm run upload:weapp -- -Version 1.2.3 -Description "变更说明" # 完整预览流程通过后才上传
 pnpm run lint         # 代码检查(改完代码请执行)
 ```
 
-其他命令:`pnpm run dev:h5`(H5 开发模式)、`build.sh`(服务器一键构建)。
+微信上传只能使用 `upload:weapp`，禁止直接调用开发者工具 `upload`；脚本任一步失败都会终止上传。其他命令：`pnpm run dev:h5`（H5 开发模式）、`build.sh`（服务器一键构建）。
 
 ## 约定
 

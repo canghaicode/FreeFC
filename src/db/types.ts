@@ -481,11 +481,11 @@ export interface TeamAlbumBase {
   created_at: string
 }
 
-/** 群相册照片（文件存 picui 图床） */
+/** 群相册照片（文件存 Supabase Storage） */
 export interface TeamPhoto {
   id: string
   album_id: string
-  picui_key: string
+  storage_path: string
   url: string
   thumbnail_url: string | null
   origin_name: string | null
@@ -495,23 +495,4 @@ export interface TeamPhoto {
   uploaded_by: string
   uploader_name: string | null
   created_at: string
-}
-
-/** picui 图床账号信息（脱敏，不含 Token） */
-export interface PicuiProfile {
-  username: string
-  name: string | null
-  capacity: number
-  size: number
-  image_num: number
-  album_num: number
-}
-
-/** picui 图床配置状态 */
-export interface PicuiStatus {
-  configured: boolean
-  valid?: boolean
-  message?: string
-  profile?: PicuiProfile | null
-  updated_at?: string
 }

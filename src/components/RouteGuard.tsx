@@ -32,7 +32,6 @@ const GATED_TITLES: {path: string; title: string; adminOnly?: boolean}[] = [
   {path: 'pages/vote-detail/index', title: '投票详情'},
   {path: 'pages/gallery/index', title: '群相册'},
   {path: 'pages/album-detail/index', title: '相册详情'},
-  {path: 'pages/picui-settings/index', title: '图床设置'},
   {path: 'pages/activity-create/index', title: '发布活动', adminOnly: true},
   {path: 'pages/activity-edit/index', title: '编辑活动', adminOnly: true}
 ]

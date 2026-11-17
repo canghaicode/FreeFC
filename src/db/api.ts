@@ -11,20 +11,18 @@ import type {
   Lineup,
   LineupPosition,
   MatchStats,
-  RegistrationGuest,
   MatchSummary,
   MatchVoteKind,
   MatchVoteRow,
   MemberEquipment,
   MemberGrowth,
   MemberSkill,
-  PicuiProfile,
-  PicuiStatus,
   Poll,
   PollOption,
   PollWithMeta,
   Profile,
   Registration,
+  RegistrationGuest,
   Season,
   SeasonStatsRow,
   SkillCatalog,
@@ -39,8 +37,10 @@ import type {
   TeamPhoto
 } from './types'
 
-/** 获取当前登录用户 ID */
+/** 获取当前登录用户 ID；无本地会话时不请求受保护的 /auth/v1/user。 */
 async function getCurrentUserId(): Promise<string | null> {
+  const {data: sessionData} = await supabase.auth.getSession()
+  if (!sessionData.session) return null
   const {data} = await supabase.auth.getUser()
   return data.user?.id ?? null
 }
@@ -2139,7 +2139,7 @@ export async function updateTeamAlbum(id: string, name: string, description: str
 export async function getAlbumPhotos(albumId: string): Promise<TeamPhoto[]> {
   const {data, error} = await supabase
     .from('team_photos')
-    .select('id, album_id, picui_key, url, thumbnail_url, origin_name, width, height, size_kb, uploaded_by, uploader_name, created_at')
+    .select('id, album_id, storage_path, url, thumbnail_url, origin_name, width, height, size_kb, uploaded_by, uploader_name, created_at')
     .eq('album_id', albumId)
     .order('created_at', {ascending: false})
     .limit(500)
@@ -2150,47 +2150,68 @@ export async function getAlbumPhotos(albumId: string): Promise<TeamPhoto[]> {
   return data ?? []
 }
 
-/** 调用 picui Edge Function（图床管理动作），失败抛出中文错误 */
-async function invokePicui(body: Record<string, unknown>): Promise<any> {
-  const {data, error} = await supabase.functions.invoke('picui', {body})
+interface GalleryFunctionError {
+  context?: {text?: () => Promise<string>}
+}
+
+/** 调用群相册 Edge Function，保留服务端返回的具体错误。 */
+async function invokeGallery(body: Record<string, unknown>): Promise<unknown> {
+  const {data, error} = await supabase.functions.invoke('gallery', {body})
   if (error) {
-    let msg = error.message || '操作失败'
+    let message = error.message || '操作失败'
     try {
-      const text = await (error as any).context?.text?.()
-      const parsed = text ? JSON.parse(text) : null
-      if (parsed?.error) msg = String(parsed.error)
+      // supabase-js 的公开错误类型未声明响应 context，但运行时会提供。
+      const functionError = error as unknown as GalleryFunctionError
+      const text = await functionError.context?.text?.()
+      const parsed: unknown = text ? JSON.parse(text) : null
+      if (typeof parsed === 'object' && parsed !== null && 'error' in parsed && typeof parsed.error === 'string') {
+        message = parsed.error
+      }
     } catch {
       /* 保留默认提示 */
     }
-    throw new Error(msg)
+    throw new Error(message)
   }
-  if (data?.error) throw new Error(String(data.error))
+  if (typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string') {
+    throw new Error(data.error)
+  }
   return data
 }
 
-export async function getPicuiStatus(): Promise<PicuiStatus | null> {
-  try {
-    return (await invokePicui({action: 'status'})) as PicuiStatus
-  } catch (e) {
-    console.error('getPicuiStatus failed:', (e as Error).message)
-    return null
+function parseTeamPhoto(value: unknown): TeamPhoto {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('上传结果格式错误')
+  const photo = value as {[K in keyof TeamPhoto]: unknown}
+  const nullableString = (field: unknown) => field === null || typeof field === 'string'
+  const nullableNumber = (field: unknown) => field === null || typeof field === 'number'
+  if (
+    typeof photo.id !== 'string' ||
+    typeof photo.album_id !== 'string' ||
+    typeof photo.storage_path !== 'string' ||
+    typeof photo.url !== 'string' ||
+    !nullableString(photo.thumbnail_url) ||
+    !nullableString(photo.origin_name) ||
+    !nullableNumber(photo.width) ||
+    !nullableNumber(photo.height) ||
+    !nullableNumber(photo.size_kb) ||
+    typeof photo.uploaded_by !== 'string' ||
+    !nullableString(photo.uploader_name) ||
+    typeof photo.created_at !== 'string'
+  ) {
+    throw new Error('上传结果格式错误')
   }
+  return photo as TeamPhoto
 }
 
-export async function savePicuiToken(token: string): Promise<PicuiProfile> {
-  const data = await invokePicui({action: 'save-token', token})
-  return data.profile as PicuiProfile
-}
 
 export async function deleteAlbumPhoto(photoId: string): Promise<void> {
-  await invokePicui({action: 'delete-photo', photoId})
+  await invokeGallery({action: 'delete-photo', photoId})
 }
 
 export async function deleteTeamAlbum(albumId: string): Promise<void> {
-  await invokePicui({action: 'delete-album', albumId})
+  await invokeGallery({action: 'delete-album', albumId})
 }
 
-/** 上传单张照片至 picui 图床（base64 经 picui-upload Edge Function 中转） */
+/** 上传单张照片到 Supabase Storage。 */
 export async function uploadAlbumPhoto(params: {
   base64: string
   ext: string
@@ -2199,27 +2220,15 @@ export async function uploadAlbumPhoto(params: {
   width?: number
   height?: number
 }): Promise<TeamPhoto> {
-  const {data, error} = await supabase.functions.invoke('picui-upload', {
-    body: {
-      base64: params.base64,
-      ext: params.ext,
-      contentType: params.contentType,
-      albumId: params.albumId,
-      width: params.width || 0,
-      height: params.height || 0
-    }
+  const data = await invokeGallery({
+    action: 'upload',
+    base64: params.base64,
+    ext: params.ext,
+    contentType: params.contentType,
+    albumId: params.albumId,
+    width: params.width || 0,
+    height: params.height || 0
   })
-  if (error) {
-    let msg = error.message || '上传失败'
-    try {
-      const text = await (error as any).context?.text?.()
-      const parsed = text ? JSON.parse(text) : null
-      if (parsed?.error) msg = String(parsed.error)
-    } catch {
-      /* 保留默认提示 */
-    }
-    throw new Error(msg)
-  }
-  if (!data?.photo) throw new Error('上传失败')
-  return data.photo as TeamPhoto
+  if (typeof data !== 'object' || data === null || !('photo' in data)) throw new Error('上传失败')
+  return parseTeamPhoto(data.photo)
 }

@@ -1,20 +1,20 @@
 // @title 相册详情
-import {useCallback, useMemo, useState} from 'react'
-import Taro, {useDidShow} from '@tarojs/taro'
-import {useBackgroundRefresh, useCachedState} from '@/hooks/useBackgroundRefresh'
+
 import {Image, Swiper, SwiperItem} from '@tarojs/components'
+import Taro, {useDidShow} from '@tarojs/taro'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {withRouteGuard} from '@/components/RouteGuard'
 import {useAuth} from '@/contexts/AuthContext'
 import {
   deleteAlbumPhoto,
   deleteTeamAlbum,
   getAlbumPhotos,
-  getPicuiStatus,
   getTeamAlbumDetail,
   updateTeamAlbum
 } from '@/db/api'
-import {chooseAlbumPhotos, uploadAlbumPhotoFile} from '@/utils/picui'
 import type {TeamAlbumBase, TeamPhoto} from '@/db/types'
+import {useBackgroundRefresh, useCachedState} from '@/hooks/useBackgroundRefresh'
+import {chooseAlbumPhotos, invalidateAlbumImage, preloadAlbumImage, uploadAlbumPhotoFile} from '@/utils/gallery'
 
 function formatPhotoTime(iso: string): string {
   const d = new Date(iso)
@@ -22,6 +22,62 @@ function formatPhotoTime(iso: string): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+const PHOTO_PRELOAD_BATCH_SIZE = 3
+
+interface AlbumPhotoTileProps {
+  photo: TeamPhoto
+  index: number
+  source: string | null | undefined
+  onOpen: (index: number) => void
+  onDisplayError: (photoId: string, remoteUrl: string) => void
+}
+
+function AlbumPhotoTile({photo, index, source, onOpen, onDisplayError}: AlbumPhotoTileProps) {
+  const [visible, setVisible] = useState(false)
+  const remoteUrl = photo.thumbnail_url || photo.url
+
+
+  return (
+    <div className="w-1/3 p-[2px]" onClick={() => source && visible && onOpen(index)}>
+      <div className="relative rounded-lg overflow-hidden bg-muted" style={{paddingBottom: '100%'}}>
+        {!visible && (
+          <div className={`absolute inset-0 flex items-center justify-center bg-muted ${source === null ? '' : 'animate-pulse'}`}>
+            <div className={`${source === null ? 'i-mdi-image-broken-variant text-destructive/60' : 'i-mdi-image-outline text-muted-foreground/35'} text-3xl`} />
+          </div>
+        )}
+        {source && (
+          <Image
+            src={source}
+            mode="aspectFill"
+            className={`absolute inset-0 w-full h-full transition-opacity duration-300 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setVisible(true)}
+            onError={() => onDisplayError(photo.id, remoteUrl)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AlbumPreviewImage({source}: {source: string | null | undefined}) {
+  const [visible, setVisible] = useState(false)
+
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
+      {!visible && <div className="i-mdi-loading animate-spin text-4xl text-white/50" />}
+      {source && (
+        <Image
+          src={source}
+          mode="aspectFit"
+          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setVisible(true)}
+        />
+      )}
+    </div>
+  )
+}
+
 
 function AlbumDetail() {
   const {user, profile} = useAuth()
@@ -32,7 +88,6 @@ function AlbumDetail() {
   const [photos, setPhotos] = useCachedState<TeamPhoto[]>(`album-photos:${albumId}`, [])
   const {loading, startRefresh, finishRefresh} = useBackgroundRefresh(albumId ? `album-detail:${albumId}` : 'album-detail')
   const [resolved, setResolved] = useState(false)
-  const [picuiReady, setPicuiReady] = useState(false)
 
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState(0)
@@ -45,20 +100,19 @@ function AlbumDetail() {
   const [uploading, setUploading] = useState(false)
   const [uploadDone, setUploadDone] = useState(0)
   const [uploadTotal, setUploadTotal] = useState(0)
+  const [photoSources, setPhotoSources] = useState<Record<string, string | null>>({})
 
   const loadData = useCallback(async () => {
     const id = Taro.getCurrentInstance().router?.params?.id || albumId
     if (!id) return
     startRefresh()
     try {
-      const [a, list, st] = await Promise.all([
+      const [a, list] = await Promise.all([
         getTeamAlbumDetail(id),
-        getAlbumPhotos(id),
-        getPicuiStatus()
+        getAlbumPhotos(id)
       ])
       setAlbum(a)
       setPhotos(list)
-      setPicuiReady(!!st?.configured && st?.valid !== false)
       setResolved(true)
     } catch (err) {
       console.error('load album failed:', err)
@@ -71,16 +125,41 @@ function AlbumDetail() {
   useDidShow(() => {
     loadData()
   })
+  useEffect(() => {
+    let cancelled = false
+    setPhotoSources({})
+
+    const preloadInOrder = async () => {
+      for (let start = 0; start < photos.length; start += PHOTO_PRELOAD_BATCH_SIZE) {
+        const batch = photos.slice(start, start + PHOTO_PRELOAD_BATCH_SIZE).map((photo) => ({
+          photo,
+          source: preloadAlbumImage(photo.thumbnail_url || photo.url)
+        }))
+        for (const item of batch) {
+          const source = await item.source
+          if (cancelled) return
+          setPhotoSources((current) => ({...current, [item.photo.id]: source}))
+        }
+      }
+    }
+
+    void preloadInOrder()
+    return () => {
+      cancelled = true
+    }
+  }, [photos])
+
+  const handlePhotoDisplayError = useCallback((photoId: string, remoteUrl: string) => {
+    invalidateAlbumImage(remoteUrl)
+    setPhotoSources((current) => ({...current, [photoId]: null}))
+  }, [])
+
 
   const canManageAlbum = !!album && (album.created_by === user?.id || isAdmin)
   const currentPhoto = previewOpen ? photos[previewIndex] : null
   const canDeleteCurrent = !!currentPhoto && (currentPhoto.uploaded_by === user?.id || isAdmin)
 
   const handleChoose = async () => {
-    if (!picuiReady) {
-      Taro.showToast({title: '队长尚未配置图床服务', icon: 'none'})
-      return
-    }
     const picked = await chooseAlbumPhotos(9)
     if (!picked.length) return
     setUploading(true)
@@ -129,7 +208,7 @@ function AlbumDetail() {
   const handleDeleteAlbum = () => {
     Taro.showModal({
       title: '删除相册',
-      content: '将删除相册内全部照片（含图床文件），删除后无法恢复，确定删除吗？',
+      content: '将删除相册内全部服务器照片，删除后无法恢复，确定删除吗？',
       success: async (res) => {
         if (!res.confirm) return
         Taro.showLoading({title: '删除中'})
@@ -236,24 +315,18 @@ function AlbumDetail() {
           </div>
         ) : (
           <div className="flex flex-wrap">
-            {photos.map((p, i) => (
-              <div
-                key={p.id}
-                className="w-1/3 p-[2px]"
-                onClick={() => {
-                  setPreviewIndex(i)
+            {photos.map((photo, index) => (
+              <AlbumPhotoTile
+                key={`${photo.id}:${photoSources[photo.id] || 'pending'}`}
+                photo={photo}
+                index={index}
+                source={photoSources[photo.id]}
+                onOpen={(nextIndex) => {
+                  setPreviewIndex(nextIndex)
                   setPreviewOpen(true)
                 }}
-              >
-                <div className="relative rounded-lg overflow-hidden bg-muted" style={{paddingBottom: '100%'}}>
-                  <Image
-                    src={p.thumbnail_url || p.url}
-                    mode="aspectFill"
-                    className="absolute inset-0 w-full h-full"
-                    lazyLoad
-                  />
-                </div>
-              </div>
+                onDisplayError={handlePhotoDisplayError}
+              />
             ))}
           </div>
         )}
@@ -300,11 +373,9 @@ function AlbumDetail() {
                 current={previewIndex}
                 onChange={(e) => setPreviewIndex(Number((e as any).detail?.current) || 0)}
               >
-                {photos.map((p) => (
-                  <SwiperItem key={p.id}>
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Image src={p.url} mode="aspectFit" className="w-full h-full" />
-                    </div>
+                {photos.map((photo) => (
+                  <SwiperItem key={photo.id}>
+                    <AlbumPreviewImage key={photoSources[photo.id] || 'pending'} source={photoSources[photo.id]} />
                   </SwiperItem>
                 ))}
               </Swiper>

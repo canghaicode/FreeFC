@@ -3,8 +3,8 @@ import {Image, ScrollView, View} from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {Avatar} from '@/components/Avatar'
-import {submitPostMatchRatings} from '@/db/api'
 import type {PostMatchRatingForm} from '@/db/api'
+import {submitPostMatchRatings} from '@/db/api'
 
 interface PostMatchRatingModalProps {
   visible: boolean
@@ -106,15 +106,18 @@ export function PostMatchRatingModal({visible, activityId, form, perPersonFee, q
   }
 
   return (
-    <View className="fixed inset-0 z-[70] flex items-end" catchMove onClick={onClose}>
-      <View className={`absolute inset-0 bg-black/70 transition-opacity duration-300 ${sheetOn ? 'opacity-100' : 'opacity-0'}`} catchMove />
+    <View className="fixed inset-0 z-[70] flex items-end">
+      <View
+        className={`absolute inset-0 bg-black/70 transition-opacity duration-300 ${sheetOn ? 'opacity-100' : 'opacity-0'}`}
+        catchMove
+        onClick={onClose}
+      />
       <View
         className={`relative w-full bg-card rounded-t-3xl overflow-hidden flex flex-col transition-transform duration-300 ease-out ${sheetOn ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{maxHeight: '90vh'}}
-        catchMove
+        style={{height: '90vh'}}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="px-5 pt-5 pb-3 border-b border-border/50">
+        <View className="px-5 pt-5 pb-3 border-b border-border/50 shrink-0" catchMove>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <div className="i-mdi-star-half-full text-3xl text-primary shrink-0" />
@@ -123,9 +126,17 @@ export function PostMatchRatingModal({visible, activityId, form, perPersonFee, q
             <button type="button" className="i-mdi-close text-2xl text-muted-foreground shrink-0" onClick={onClose} />
           </div>
           <p className="mt-1 text-base text-muted-foreground">按本场实际表现评分，将影响分队均衡</p>
-        </div>
+        </View>
 
-        <ScrollView scrollY className="flex-1 min-h-0" style={{height: '58vh'}}>
+        <ScrollView
+          scrollY
+          enhanced
+          bounces={false}
+          showScrollbar={false}
+          enablePassive
+          className="flex-1 min-h-0"
+          style={{height: '0px', overscrollBehavior: 'contain'}}
+        >
           <div className="px-4 py-3 flex flex-col gap-4">
             {groups.map((group) => (
               <div key={group.team} className="flex flex-col gap-2">
@@ -207,7 +218,7 @@ export function PostMatchRatingModal({visible, activityId, form, perPersonFee, q
           </div>
         </ScrollView>
 
-        <div className="px-5 pt-3 pb-7 border-t border-border/50 bg-card flex flex-col gap-2">
+        <View className="px-5 pt-3 pb-7 border-t border-border/50 bg-card flex flex-col gap-2 shrink-0" catchMove>
           <div className="flex items-center justify-between text-base">
             <span className="text-muted-foreground">已评 {scoredCount}/{total} 人</span>
             <span className="text-muted-foreground">点击右侧分数可清除</span>
@@ -231,7 +242,7 @@ export function PostMatchRatingModal({visible, activityId, form, perPersonFee, q
               </span>
             </button>
           </div>
-        </div>
+        </View>
       </View>
     </View>
   )

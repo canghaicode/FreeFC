@@ -1,8 +1,8 @@
 // @title 球星卡
 
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
-import Taro, {useDidShow} from '@tarojs/taro'
 import {ScrollView, View} from '@tarojs/components'
+import Taro, {useDidShow} from '@tarojs/taro'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {Avatar, CachedAvatarImage} from '@/components/Avatar'
 import {FootPrints} from '@/components/FootPrints'
 import {LogoBg} from '@/components/LogoBg'
@@ -12,10 +12,10 @@ import {withRouteGuard} from '@/components/RouteGuard'
 import {TitleBadge} from '@/components/TitleBadge'
 import {
   ABILITY_DIMENSIONS,
-  BASE_ABILITY_TOTAL,
   type AbilityKey,
   abilitiesWithBonus,
   abilityCapsOf,
+  BASE_ABILITY_TOTAL,
   cardTier,
   DEFAULT_ABILITY,
   EQUIPMENT_EFFECTS,
@@ -26,8 +26,8 @@ import {
   levelBonuses,
   levelFromActivity,
   MAX_BASE_ABILITY,
-  mergeBonuses,
   MIN_BASE_ABILITY,
+  mergeBonuses,
   overallAbility,
   RARITY_STYLES,
   skillBonuses
@@ -59,7 +59,7 @@ function baseSignature(values: BaseValues): string {
 }
 
 function AbilityPage() {
-  const {profile, refreshProfile} = useAuth()
+  const {user, profile, refreshProfile} = useAuth()
   const [skills, setSkills] = useState<MemberSkill[]>([])
   const [equipment, setEquipment] = useState<MemberEquipment[]>([])
   const [allocation, setAllocation] = useState<AbilityAllocation | null>(null)
@@ -77,6 +77,10 @@ function AbilityPage() {
   const allocationPending = useRef(false)
   const loadPending = useRef(true)
   const [growthCfg, setGrowthCfg] = useState(() => getGrowthConfig())
+  const loadedUserId = useRef<string | null | undefined>(undefined)
+  const userIdRef = useRef(user?.id)
+  userIdRef.current = user?.id
+  const loadGeneration = useRef(0)
   const [showPoster, setShowPoster] = useState(false)
   useEffect(() => {
     // 队长后台可能已更新成长数值，进页时同步
@@ -108,7 +112,24 @@ function AbilityPage() {
   }, [baseEditorPresent])
 
   const loadData = useCallback(async () => {
+    const generation = ++loadGeneration.current
+    const userId = userIdRef.current
+    if (!userId) {
+      loadPending.current = false
+      setSkills([])
+      setEquipment([])
+      setAllocation(null)
+      setBonusSourcesReady(false)
+      setLoadError(null)
+      setBaseEditorOpen(false)
+      setBaseDraft(null)
+      setBaseDraftSource(null)
+      setLoading(false)
+      return
+    }
     if (allocationPending.current) return
+
+    const isStale = () => generation !== loadGeneration.current || userIdRef.current !== userId
     loadPending.current = true
     setLoading(true)
     setLoadError(null)
@@ -118,6 +139,7 @@ function AbilityPage() {
         getMyEquipment(),
         getMyAbilityAllocation()
       ])
+      if (isStale()) return
       if (!result.ok || !result.data) {
         setAllocation(null)
         setBonusSourcesReady(false)
@@ -132,6 +154,7 @@ function AbilityPage() {
       setBonusSourcesReady(true)
       setAllocation(result.data)
     } catch (err) {
+      if (isStale()) return
       console.error('Failed to load ability data:', err)
       setAllocation(null)
       setBonusSourcesReady(false)
@@ -140,15 +163,25 @@ function AbilityPage() {
       setBaseDraftSource(null)
       setLoadError('属性分配加载失败，请检查网络后重试')
     } finally {
-      loadPending.current = false
-      setLoading(false)
+      if (!isStale()) {
+        loadPending.current = false
+        setLoading(false)
+      }
     }
   }, [])
 
   useDidShow(() => {
-    void refreshProfile()
+    loadedUserId.current = userIdRef.current ?? null
+    if (userIdRef.current) void refreshProfile()
     void loadData()
   })
+
+  useEffect(() => {
+    const userId = user?.id ?? null
+    if (loadedUserId.current === undefined || loadedUserId.current === userId) return
+    loadedUserId.current = userId
+    void loadData()
+  }, [user?.id, loadData])
 
   const skillBonusMap = useMemo(() => skillBonuses(skills), [skills])
   const equipBonusMap = useMemo(() => equipmentBonuses(equipment), [equipment])

@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
-import {extractExt, getMimeType} from './upload'
 import {uploadAlbumPhoto} from '@/db/api'
 import type {TeamPhoto} from '@/db/types'
+import {extractExt, getMimeType} from './upload'
 
 /** 服务端原图上限约 2MB */
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024
@@ -17,6 +17,34 @@ export interface PhotoUploadResult {
   photo?: TeamPhoto
   error?: string
 }
+const albumImagePaths = new Map<string, string>()
+const albumImageTasks = new Map<string, Promise<string | null>>()
+
+
+/** 完整下载一张相册图片后返回可直接展示的地址；微信端复用本地临时文件。 */
+export function preloadAlbumImage(url: string): Promise<string | null> {
+  const cached = albumImagePaths.get(url)
+  if (cached) return Promise.resolve(cached)
+  const pending = albumImageTasks.get(url)
+  if (pending) return pending
+  if (!/^https?:\/\//.test(url)) return Promise.resolve(url)
+
+  const task = Taro.getImageInfo({src: url})
+    .then((info) => info.path || url)
+    .then((source) => {
+      if (source) albumImagePaths.set(url, source)
+      return source
+    })
+    .catch(() => null)
+    .finally(() => albumImageTasks.delete(url))
+  albumImageTasks.set(url, task)
+  return task
+}
+
+export function invalidateAlbumImage(url: string): void {
+  albumImagePaths.delete(url)
+}
+
 
 /** weapp：读取本地文件为 base64 */
 function readWeappFileBase64(filePath: string): Promise<string> {
@@ -26,7 +54,7 @@ function readWeappFileBase64(filePath: string): Promise<string> {
         filePath,
         encoding: 'base64',
         success: (res) => resolve(String(res.data || '')),
-        fail: (e) => reject(new Error((e as any)?.errMsg || '读取文件失败'))
+        fail: (error) => reject(new Error(error.errMsg || '读取文件失败'))
       })
     } catch {
       reject(new Error('读取文件失败'))
@@ -41,7 +69,7 @@ function getWeappFileSize(filePath: string): Promise<number> {
       const fsm = Taro.getFileSystemManager()
       fsm.getFileInfo({
         filePath,
-        success: (res: any) => resolve(res.size || 0),
+        success: (res) => resolve(res.size || 0),
         fail: () => resolve(0)
       })
     } catch {
@@ -124,13 +152,13 @@ function fileToBase64(file: File): Promise<string> {
 /** 多选本地照片（默认最多 9 张，压缩档） */
 export async function chooseAlbumPhotos(maxCount = 9): Promise<PendingPhoto[]> {
   try {
-    const res: any = await Taro.chooseMedia({
+    const res = await Taro.chooseMedia({
       count: maxCount,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       sizeType: ['compressed']
     })
-    const files: any[] = res?.tempFiles || []
+    const files = res?.tempFiles || []
     if (files.length) {
       return files.map((f) => ({path: String(f.tempFilePath || ''), size: Number(f.size) || 0}))
     }
@@ -138,20 +166,20 @@ export async function chooseAlbumPhotos(maxCount = 9): Promise<PendingPhoto[]> {
     /* 旧基础库回退 chooseImage */
   }
   try {
-    const res: any = await Taro.chooseImage({
+    const res = await Taro.chooseImage({
       count: maxCount,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera']
     })
     const paths: string[] = res?.tempFilePaths || []
-    const sizes: any[] = res?.tempFiles || []
+    const sizes = res?.tempFiles || []
     return paths.map((p, i) => ({path: p, size: Number(sizes[i]?.size) || 0}))
   } catch {
     return []
   }
 }
 
-/** 上传单张照片：压缩 → base64 → picui-upload Edge Function 中转至图床 */
+/** 上传单张照片：压缩 → base64 → gallery Edge Function 存入 Supabase Storage */
 export async function uploadAlbumPhotoFile(photo: PendingPhoto, albumId: string): Promise<PhotoUploadResult> {
   try {
     const {width, height} = await getImageSize(photo.path)
