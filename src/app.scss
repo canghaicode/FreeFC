@@ -159,6 +159,19 @@
     background-position: center, center;
     background-repeat: no-repeat;
   }
+  /* 「或」两侧金线：两端渐隐，中间让开文字，不在字上打点 */
+  .vine-divider-side {
+    height: 2px;
+    background-repeat: no-repeat;
+    background-size: 100% 2px;
+    background-image: linear-gradient(90deg, transparent, hsl(var(--gold) / 0.55) 24%, hsl(var(--gold) / 0.55));
+  }
+  .vine-divider-side-end {
+    height: 2px;
+    background-repeat: no-repeat;
+    background-size: 100% 2px;
+    background-image: linear-gradient(90deg, hsl(var(--gold) / 0.55), hsl(var(--gold) / 0.55) 76%, transparent);
+  }
   /* 有机曲线轮廓：非对称圆角，替代规整矩形 */
   .organic-shape {
     border-radius: 58% 42% 52% 48% / 46% 54% 46% 54%;
