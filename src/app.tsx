@@ -26,9 +26,33 @@ const FONTS = [
     source: 'url("https://resource-static.bj.bcebos.com/fonts-skill/AlibabaPuHuiTi_Regular.ttf")'
   },
 ]
+/** 冷启动异步更新：新版本下载完成后提示重启，避免用户一直停在旧包。 */
+function watchMiniProgramUpdate() {
+  if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP || typeof Taro.getUpdateManager !== 'function') return
+  try {
+    const updateManager = Taro.getUpdateManager()
+    updateManager.onUpdateReady(() => {
+      Taro.showModal({
+        title: '更新提示',
+        content: '新版本已经准备好，是否重启应用？',
+        confirmText: '重启',
+        confirmColor: '#2D5016',
+        success(res) {
+          if (res.confirm) updateManager.applyUpdate()
+        }
+      })
+    })
+  } catch {
+    // 开发者工具未模拟更新时该接口不可用，忽略即可
+  }
+}
 
 const App: React.FC = ({children}: PropsWithChildren<unknown>) => {
   useTabBarPageClass()
+
+  Taro.useLaunch(() => {
+    watchMiniProgramUpdate()
+  })
 
   useEffect(() => {
     // 小程序环境需要 loadFontFace 加载远程字体（H5 由 app.scss 的 @font-face 覆盖）
