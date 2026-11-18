@@ -82,7 +82,22 @@ function activityStatus(activity: ActivityWithCount) {
   return {label: '报名中', cls: 'bg-primary/10 text-primary'}
 }
 
-function renderActivityCard(activity: ActivityWithCount, joined: boolean) {
+/** 活动日相对今天：仅今天、明天、后天，更远或已过不显示。 */
+function relativeDayLabel(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const now = new Date()
+  const day = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const diff = Math.round((day - today) / 86400000)
+  if (diff === 0) return '今天'
+  if (diff === 1) return '明天'
+  if (diff === 2) return '后天'
+  return ''
+}
+
+
+function renderActivityCard(activity: ActivityWithCount, joined: boolean, muted = false) {
   const count = playerCount(activity)
   const status = activityStatus(activity)
   return (
@@ -93,33 +108,50 @@ function renderActivityCard(activity: ActivityWithCount, joined: boolean) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 flex-wrap">
-          <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-base font-medium">
+          <span
+            className={`px-2 py-0.5 rounded-md text-base font-medium ${
+              muted ? 'bg-background text-muted-foreground' : 'bg-primary/15 text-primary'
+            }`}
+          >
             {MATCH_FORMATS[activity.match_format || '11']?.name || '11人制'}
           </span>
-          <span className="px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground text-base font-medium">
+          <span
+            className={`px-2 py-0.5 rounded-md text-base font-medium ${
+              muted ? 'bg-background text-muted-foreground' : 'bg-accent/20 text-accent-foreground'
+            }`}
+          >
             {activity.match_type === 'external' ? '外战' : '内战'}
           </span>
-          <h3 className="font-heading text-2xl text-foreground">{activity.title}</h3>
+          <h3 className={`font-heading text-2xl ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>{activity.title}</h3>
         </div>
         <span className={`px-3 py-1 rounded-full text-lg ${status.cls}`}>{status.label}</span>
       </div>
       <div className="flex flex-col gap-2 mt-3">
         <div className="flex items-center gap-2">
-          <div className="i-mdi-calendar-month-outline text-2xl text-primary" />
-          <span className="text-xl text-muted-foreground">{formatActivityTime(activity.activity_time)}</span>
+          <div className={`i-mdi-calendar-month-outline text-2xl ${muted ? 'text-muted-foreground' : 'text-primary'}`} />
+          <span className="text-xl text-muted-foreground">
+            {formatActivityTime(activity.activity_time)}
+            {relativeDayLabel(activity.activity_time) ? ` ${relativeDayLabel(activity.activity_time)}` : ''}
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="i-mdi-map-marker-outline text-2xl text-primary" />
+          <div className={`i-mdi-map-marker-outline text-2xl ${muted ? 'text-muted-foreground' : 'text-primary'}`} />
           <span className="text-xl text-muted-foreground flex-1 overflow-hidden">{activity.location}</span>
           {joined && (
-            <span className="px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground text-lg">已报名</span>
+            <span
+              className={`px-2 py-0.5 rounded-md text-lg ${
+                muted ? 'bg-background text-muted-foreground' : 'bg-accent/20 text-accent-foreground'
+              }`}
+            >
+              已报名
+            </span>
           )}
         </div>
       </div>
       <div className="flex items-center gap-3 mt-3">
-        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+        <div className={`flex-1 h-2 rounded-full overflow-hidden ${muted ? 'bg-background' : 'bg-background/90'}`}>
           <div
-            className="h-full bg-gradient-gold rounded-full"
+            className={`h-full rounded-full ${muted ? 'bg-stone-300' : 'bg-gradient-gold'}`}
             style={{width: `${Math.min(100, (count / activity.max_players) * 100)}%`}}
           />
         </div>
@@ -341,7 +373,7 @@ function Home() {
           </div>
         )}
 
-        {historyActivities.map((activity) => renderActivityCard(activity, myJoined.includes(activity.id)))}
+        {historyActivities.map((activity) => renderActivityCard(activity, myJoined.includes(activity.id), true))}
       </div>
     </div>
       <PostMatchRatingModal
